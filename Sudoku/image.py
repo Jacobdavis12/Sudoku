@@ -1,92 +1,20 @@
-from http.server import BaseHTTPRequestHandler
-import socketserver
 import numpy as np
 from PIL import Image
 import io
 
-class handler(BaseHTTPRequestHandler):
-    header = '<html> <head> <title>Sudoku solver</title> <style>#header { font-size: 10vh; height: 10vh; margin: 0px; } #content { display: flex; flex-wrap: wrap; } #sudoku { height: 80vh; width: 80vh; display: grid; grid-template-columns: 26vh 26vh 26vh; grid-gap: 1vh; background-color: black; border:solid #cccccc 1vh; float:left; } .square { position: relative; height: 100%; width: 100%; display: grid; grid-template-columns: 8vh 8vh 8vh; grid-gap: 1vh; background-color: #c0c0c0; } .cell { font-size: 8vh; height: 8vh; text-align: center; background-color: white; border: 0px; } #image, .type { display: none; } .control { background-color: #004080; border-radius: 5px; border: 1px solid white; color: white; } #controls { flex-grow: 100; display: grid; grid-template-rows: 26vh 26vh 26vh; grid-gap: 1vh; white-space: nowrap; font-size: 6vh; padding: 1vh 0px 0px 1vh; } #controls > .control{ display: flex; height: 26vh; width: 100%; } @media screen and (orientation: portrait) { #header { font-size: 10vw; height: 10vw; } #sudoku { height: 80vw; width: 80vw; grid-template-columns: 26vw 26vw 26vw; grid-gap: 1vw; border-width: 1vw; } .square { grid-template-columns: 8vw 8vw 8vw; grid-gap: 1vw; } .cell { font-size: 8vw; height: 8vw; } #controls { padding-left: 0px; font-size: 6vw; height: 6vw; grid-template-rows: 26vw 26vw 26vw; grid-gap: 1vw; padding: 1vw 0px 0px 1vw; } #controls > .control{ height: 26vw; } } </style> </head> <body> <h1 id="header">Sudoku solver</h1> <div id="content"> <form id="sudoku" method="post"> <input name="type" class="type" value="sudoku"></input>'
-    footer = '</form> <div id="controls"> <label for="image" class="control"> Upload Sudoku image <form id = "upload" method="post" enctype="multipart/form-data"> <input name="type" class="type" value="image"></input> <input id="image" type="file" name="filename" onchange="form.submit()"> </form> </label> <label class="control" for="photo"> Preferences <form id = "preference" method="post"> <input name="type" class="type" value="preference"></input> </form> </label> <label class="control" onclick="sudoku.submit()"> Solve Sudoku </label> </div> </div> </body> </html>'
-    
-    def sendHtml(self, data):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        self.wfile.write(data.encode('utf8'))
-        
-    def do_GET(self, params = {}):
-        index = self.header
-        for h in range(9):
-            index += '<div id="s' + str(h) + '" class="square">\n'
-            for w in range(9):
-                if str(h) + str(w) in params:
-                    index += '<input type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="' + str(params[str(h) + str(w)]) + '" class="cell">\n'
-                else:
-                    index += '<input type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="" class="cell">\n'
-            index += '</div>\n'
+def generateGaussianKernel(sigma, size):
+    #kernel1D = []
+    #for distance in range(-size,size+1):
+    #    kernel1D.append(1 / ((2 * np.pi)**(1/2) * sigma) * np.exp(-(distance / sigma)**2 / 2))
+    #kernel = np.outer(kernel1D, kernel1D)
 
-        index += self.footer
-            
-        self.sendHtml(index)
-            
-    def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        postData = self.rfile.read(content_length)
-        print(postData)
-        if b'sudoku' in postData:
-            sudokuInput = sudoku(self.parseSudoku(postData))
-            sudokuInput.solve()
-            self.do_GET(sudokuInput.getValues())
-        elif b'image' in postData:
-            imageInput = sudokuImage(self.parseImage(postData))
-            imageInput.recognise()
-            self.do_GET(imageInput.getValues())
-        elif b'preference' in postData:
-            self.parsePref(postData)
-            self.do_GET()
-        else:
-            print('error')
+    kernel = np.zeros((2*size+1,2*size+1))
+    coefficient = 2*sigma**2
 
-    def parseSudoku(self, rawData):
-        rawData = str(rawData)
-        data = {}
-        for value in rawData[:-1].split('&')[1:]:
-            values = value.split('=')
-            data[values[0]] = values[1]
-        print(data)
-        return data
-
-    def parseImage(self, rawData):
-        filename = rawData.split(b'filename="')[1].split(b'"')[0]
-        data = rawData.split(b'\r\n\r\n')
-        with open('test.jpg', 'wb') as f:
-            f.write(data[-1])
-        return data[-1]
-
-    def parsePref(self, rawData):
-        pass
-
-class sudoku():
-    def __init__(self, rawData):
-        self.rawValues = rawData
-        self.grid = self.rowToSquare([[rawData[str(row)+str(col)] for row in range(9)] for col in range(9)])
-
-    def squareToRow(self, grid):
-        return [[grid[row+row2][col+col2] for row2 in range(0,3,1) for col2 in range(0,3,1)] for row in range(0,9,3) for col in range(0,9,3)]
-
-    def rowToSquare(self, grid):
-        return [[grid[row+row2][col+col2] for row2 in range(0,3,1) for col2 in range(0,3,1)] for row in range(0,9,3) for col in range(0,9,3)]
-
-    def solve(self):
-        print('solved')
-
-    def getValues(self):
-        values = {}
-        squareGrid = self.squareToRow(self.grid)
-        for square in range(9):
-            for cell in range(9):
-                values[str(cell)+str(square)] = squareGrid[square][cell]
-        return values
+    for i in range(1, 2*size+2):
+        for j in range(1, 2*size+2):
+            kernel[i-1][j-1] = np.exp(-((i-(size+1))**2+(j-(size+1))**2)/2/coefficient)/(coefficient*np.pi)**(1/2)
+    return kernel
 
 class sudokuImage():
     def __init__(self, imageData):
@@ -98,7 +26,7 @@ class sudokuImage():
         self.pixlesWidth = self.width
 
         self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
-        self.values = []
+        self.values = np.empty((9,9))
 
         #Initialise kernels
         self.gaussianKernel = np.array([[2,4,5,4,2],[4,9,12,9,4],[5,12,15,12,5],[2,4,5,4,2],[4,9,12,9,4]])/159#generateGaussianKernel(1,2)#
@@ -132,6 +60,9 @@ class sudokuImage():
         self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
 
     def recognise(self):
+        if verbose:
+            self.doSave('greyscale.jpg')
+
         #Detect edges
         self.canny()
         
@@ -141,14 +72,17 @@ class sudokuImage():
         #Format into 9*9 28 pixle cells
         self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
         self.updatePixles()
+        if verbose:
+            self.save('warped.jpg')
 
         #Seperate
-        grid = self.getCells(corners)
 
+        grid = self.getCells(corners)
+        
         for row in range(9):
-            self.values.append([])
             for col in range(9):
-                self.values[row].append(nt.recognise(grid[row][col]))
+                self.doSave('grid/' + str(row) + str(col) + '.jpg', grid[row][col])
+                self.values[row][col] = nt.recognise(grid[row][col])
 
     def canny(self):
         #Apply gaussian blur
@@ -156,6 +90,9 @@ class sudokuImage():
 
         self.pixlesHeight -= np.shape(self.gaussianKernel)[0]*2
         self.pixlesWidth -= np.shape(self.gaussianKernel)[1]*2
+
+        if verbose:
+            self.doSave('gaussian.jpg')
 
         #Obtain sobel operators
         Gx = self.convolve(self.xKernel)
@@ -169,11 +106,22 @@ class sudokuImage():
         self.pixlesHeight -= 2
         self.pixlesWidth -= 2
 
+        if verbose:
+            self.doSave('gradient.jpg', gradient)
+            self.doSave('theta.jpg', (255/np.pi)*theta)
+            self.doSave('gx.jpg', 127.5+Gx/8)
+            self.doSave('gy.jpg', 127.5+Gy/8)
+            self.sTheta(theta)
+
         #Thin edge
         self.suppress(gradient, theta)
+        if verbose:
+            self.doSave('suppress.jpg')
 
         self.pixles[self.pixles < 15] =0
         self.pixles[self.pixles >= 15] = 255
+        if verbose:
+            self.doSave('Threshold.jpg')
 
     def convolve(self, kernel):
         kernel = np.flipud(np.fliplr(kernel))
@@ -206,6 +154,22 @@ class sudokuImage():
                         self.pixles[row][col] = gradient[row][col]
                 else:
                     print(theta[row][col])
+                        
+    def sTheta(self, theta):
+        thetaPixles = np.empty(self.pixles.shape)
+        for row in range(1, self.pixlesHeight-1):
+            for col in range(1, self.pixlesWidth-1):
+                if theta[row][col] < np.pi/8 or theta[row][col] >= 7*np.pi/8:#|
+                    thetaPixles[row][col] = 0
+                elif theta[row][col] < 3*np.pi/8:#/
+                    thetaPixles[row][col] = 85
+                elif theta[row][col] < 5*np.pi/8:#-
+                    thetaPixles[row][col] = 170
+                elif theta[row][col] < 7*np.pi/8:#\
+                    thetaPixles[row][col] = 255
+                else:
+                    print(theta[row][col])
+        self.doSave('sTheta.jpg', thetaPixles)
         
     def findCorners(self):
         components = self.connectedComponents()
@@ -218,8 +182,14 @@ class sudokuImage():
             size = (possibleCorners[i][2][0] - possibleCorners[i][0][0])**2 + (possibleCorners[i][2][1] - possibleCorners[i][0][1])**2
             if size >= biggest[0]:
                 biggest = [size, possibleCorners[i]]
+
+        if verbose:
+            for i in range(1, 5):
+                self.saveArray('component' + str(i) + '.jpg', components[-i])
         
         corners = biggest[1]
+        if verbose:
+            self.saveArray('corners.jpg', corners)
 
         return corners
 
@@ -285,6 +255,21 @@ class sudokuImage():
 
         return grid
 
+    #Test Saves
+    def doSave(self, fileName, pixles=''):
+        if pixles == '':
+            imageFromPixles = Image.fromarray(np.uint8(self.pixles))
+        else:
+            imageFromPixles = Image.fromarray(np.uint8(pixles))#.convert('RGB')
+        imageFromPixles.save(fileName)
+
+    def saveArray(self, fileName, array):
+        validPixles = np.empty(self.pixles.shape)
+        for i in array:
+            validPixles[i[0]][i[1]] = 255
+
+        self.doSave(fileName, validPixles)
+
 class network:
     def __init__(self, fileName = False):
         self.loadNet()
@@ -292,8 +277,8 @@ class network:
 
     def loadNet(self, filename = 'network.npz'):
         data = np.load(filename, allow_pickle=True)
-        self.biases = data['bias']
         self.weights = data['weight']
+        self.biases = data['bias']
 
     def run(self, activation):
         activations = [activation]
@@ -307,17 +292,16 @@ class network:
 
     def recognise(self, image):
         activation = nt.run(image.flatten()/255)[-1]
-        print(activation)
-        imageFromPixles = Image.fromarray(np.uint8(image))
-        imageFromPixles.save('trala.jpg')
-        input(np.argmax(activation))
         return np.argmax(activation)
 
-nt = network()
-addr = 'localhost'
-port = 8080
-serverAddress = (addr, port)
+with open('testImage.jpg', 'rb') as f:
+    testData = f.read()
 
-with socketserver.TCPServer(serverAddress, handler) as httpd:
-    print(f'Starting httpd server on {addr}:{port}')
-    httpd.serve_forever()
+verbose = True
+nt = network()
+
+
+sudoku = sudokuImage(testData)
+sudoku.recognise()
+
+breakpoint

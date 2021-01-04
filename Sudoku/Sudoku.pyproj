@@ -21,6 +21,18 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="dataGen.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="image.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="neural.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="server.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Sudoku.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
