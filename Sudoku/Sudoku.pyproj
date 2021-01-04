@@ -4,13 +4,14 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>e18a26bb-7acd-40c0-817e-793e6f049ab1</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Sudoku.py</StartupFile>
+    <StartupFile>neural.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>Sudoku</Name>
     <RootNamespace>Sudoku</RootNamespace>
+    <IsWindowsApplication>False</IsWindowsApplication>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -34,6 +35,17 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Sudoku.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ds.npy">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="network.npz">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="testImage.jpg">
+      <SubType>Code</SubType>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

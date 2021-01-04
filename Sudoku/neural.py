@@ -5,10 +5,10 @@ class network:
     def __init__(self, Dimensions, fileName = False):
         self.dimensions = Dimensions
 
-        self.biases = [2*np.random.rand(y)-1 for y in Dimensions[1:]]
-        self.weights = [2*np.random.rand(x, y)-1 for x, y in zip(Dimensions[1:], Dimensions[:-1])]
-        self.biases  = np.copy(self.biases) * 0
-        self.weights  = np.copy(self.weights) * 0
+        self.biases = [6*np.random.rand(y)-3 for y in Dimensions[1:]]
+        self.weights = [6*np.random.rand(x, y)-3 for x, y in zip(Dimensions[1:], Dimensions[:-1])]
+        #self.biases  = np.copy(self.biases) * 0
+        #self.weights  = np.copy(self.weights) * 0
 
     def loadNet(self, filename = 'network.npz'):
         data = np.load(filename, allow_pickle=True)
@@ -22,7 +22,7 @@ class network:
         batch = 1
         while batch > 0:
             try:
-                print(batch, ':', nt.test(5000, td))
+                print(batch, ':', nt.test(2000, td))
                 print('netCost:', self.SDG(10, td, learningRate))
                 batch += 1
             except KeyboardInterrupt:
@@ -49,12 +49,12 @@ class network:
                 wanted = np.zeros(10)
                 wanted[td.images[imageIndex][1]] = 1
                 activations = self.run(td.images[imageIndex][0])
-                #c = self.cost(activations[-1], wanted)
-                #netCost += c
-                netCost += self.cost(activations[-1], wanted)
+                c = self.cost(activations[-1], wanted)
+                netCost += c
+                #netCost += self.cost(activations[-1], wanted)
 
                 weightsChange, biasesChange = self.backProp(activations, wanted, weightsChange, biasesChange)
-            #input(c)
+            input(c)
 
             self.weights -= weightsChange * lr / size
             self.biases -= biasesChange * lr / size
@@ -69,7 +69,7 @@ class network:
             weightsChange[-i] += np.outer(dcdz, activations[-i-1])
             biasesChange[-i] += dcdz
             
-            dcda = np.dot(self.weights[-i], dcdz)
+            dcda = np.dot(dcdz, self.weights[-i])
 
         return weightsChange, biasesChange
 
@@ -93,16 +93,16 @@ class network:
         return sum((activation - wanted)**2)/self.dimensions[-1]
 
     def costPrime(self, activation, wanted):
-        return 2*(activation - wanted)
+        return (activation - wanted)
 
 class trainingData:
     
     def __init__(self):
         data = np.load('ds.npy', allow_pickle=True)[1:]
         #np.random.shuffle(data)
-        self.images = data[:-5000]
+        self.images = data[:-2000]
         print(len(self.images))
-        self.testImages = data[-5000:]
+        self.testImages = data[-2000:]
 
 
     def shuffleImages(self):
@@ -114,7 +114,7 @@ class trainingData:
         #np.random.shuffle(self.testImages)
 
 nt = network([784, 30, 30, 10])
-nt.loadNet()
+#nt.loadNet()
 td = trainingData()
 print('intialised')
 
@@ -127,8 +127,8 @@ print('intialised')
 #    input(td.images[img][1])
 print(nt.test(100, td))
 
-nt.train(1, td)
+nt.train(3, td)
 #print(nt.run(td.images[0][0]), td.images[0][1])
 print(nt.test(1000, td))
 print(nt.test(1000, td))
-#nt.saveNet()
+nt.saveNet()
