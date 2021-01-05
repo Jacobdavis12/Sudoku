@@ -59,6 +59,9 @@ class sudokuImage():
 
         self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
 
+    def savePixles(self):
+        self._img = Image.fromarray(np.uint8(self.pixles))
+
     def recognise(self):
         if verbose:
             self.doSave('greyscale.jpg')
@@ -70,6 +73,7 @@ class sudokuImage():
         corners = self.findCorners()
 
         #Format into 9*9 28 pixle cells
+        #self.savePixles()
         self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
         self.updatePixles()
         if verbose:
@@ -303,5 +307,3 @@ nt = network()
 
 sudoku = sudokuImage(testData)
 sudoku.recognise()
-
-breakpoint

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>e18a26bb-7acd-40c0-817e-793e6f049ab1</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>neural.py</StartupFile>
+    <StartupFile>image.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,6 +25,9 @@
     <Compile Include="dataGen.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="dataManager.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="image.py">
       <SubType>Code</SubType>
     </Compile>
@@ -32,6 +35,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="server.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="solver.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Sudoku.py" />
