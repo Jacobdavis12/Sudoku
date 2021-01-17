@@ -1,15 +1,33 @@
+import numpy as np
 class sudoku():
     def __init__(self, rawData):
-        self.rawValues = rawData
-        self.grid = self.rowToSquare([[rawData[str(row)+str(col)] for row in range(9)] for col in range(9)])
+        #self.rawValues = rawData
+        #self.grid = self.rowToSquare([[rawData[str(row)+str(col)] for row in range(9)] for col in range(9)])
+        self.grid = np.asarray([['', '', '3', '', '4', '6', '', '2', '5'],
+                                ['', '8', '4', '1', '2', '', '', '', ''],
+                                ['', '', '', '', '', '8', '', '1', '9'],
+                                ['8', '', '7', '', '', '', '1', '5', ''],
+                                ['', '4', '', '', '', '', '', '9', ''],
+                                ['', '2', '9', '', '', '', '3', '', '7'],
+                                ['7', '9', '', '6', '', '', '', '', ''],
+                                ['', '', '', '', '1', '9', '2', '7', ''],
+                                ['6', '1', '', '2', '3', '', '9', '', '']])
+
+        #self.grid = np.asarray([['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', ''],
+        #                        ['', '', '', '', '', '', '', '', '']])
 
         self.possible = '123456789'
-        self.possibilities = np.empty(self.grid.shape)
+        self.possibilities = np.full(self.grid.shape, '123456789')
         for row in range(9):
             for col in range(9):
-                if self.grid[row][col] == 0:
-                    self.possibilities[row][col] = str(possible)
-                else:
+                if self.grid[row][col] != '':
                     self.possibilities[row][col] = str(self.grid[row][col])
             
 
@@ -29,27 +47,64 @@ class sudoku():
 
     def solve(self):
         print('solved')
-        self.applyRestrictions()
+
+        previousPossibilities = []
+        while previousPossibilities != self.possibilities:
+            #previousPossibilities = self.possibilities
+            self.applyRestrictions()
+            self.display()
+            
+        print('cannot solve')
 
     def applyRestrictions(self):
-        self.singularities()
+        self.removeRow()
+        self.removeCol()
+        self.removeSqu()
 
-    def singularities(self):
+    def remove(self, pointers):
+        for pointer in pointers:
+            if len(self.possibilities[pointer[0]][pointer[1]]) == 1:
+                for pointerRemove in pointers:
+                    if pointerRemove != pointer:
+                        self.possibilities[pointerRemove[0]][pointerRemove[1]] = self.possibilities[pointerRemove[0]][pointerRemove[1]].replace(self.possibilities[pointer[0]][pointer[1]], '')
+
+    def insert(self, pointers):
+        for number in range(9):
+            sole = False
+            for pointer in pointers:
+                if str(number) in self.possibilities[pointer[0]][pointer[1]]:
+                    if sole == False:
+                        sole = pointer
+                    else:
+                        sole = False
+                        break
+
+            if sole != False:
+                self.possibilities[sole[0]][sole[1]] = number
+
+    def removeRow(self):
         for row in range(9):
-            for col in range(9):
-                if len(self.possibilities[row][col]) == 1:
-                    self.removeFromRow()
-                    self.removeFromCol()
-                    self.removeFromSqu()
+            pointers = [[row, col] for col in range(9)]
+            self.remove(pointers)
+            self.insert(pointers)
 
+    def removeCol(self):
+        for col in range(9):
+            pointers = [[row, col] for row in range(9)]
+            self.remove(pointers)
+            self.insert(pointers)
 
-    def removeFromRow(self):
-        for row in range(9):
-            for col in range(9):
-                if len(self.possibilities[row][col]) == 1:
-                    for colRemove in range(9):
-                        if colRemove != col:
-                            self.possibilities[row][colRemove] = self.possibilities[row][colRemove].replace(self.possibilities[row][col],'')
+    def removeSqu(self):
+        for row in range(0,9,3):
+            for col in range(0,9,3):
+                pointers = [[row+row2, col+col2] for col2 in range(0,3,1) for row2 in range(0,3,1)]
+                self.remove(pointers)
+                self.insert(pointers)
 
+    def display(self):
+        for row in self.possibilities:
+            print([[row[col], row[col+1], row[col+2]] for col in range(0,9,3)])
+        print()
 
-
+s = sudoku('p')
+s.solve()

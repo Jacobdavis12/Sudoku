@@ -307,10 +307,10 @@ class network:
 
     def recognise(self, image):
         activation = nt.run(image.flatten()/255)[-1]
-        print(activation)
+        #print(activation)
         imageFromPixles = Image.fromarray(np.uint8(image))
         imageFromPixles.save('trala.jpg')
-        input(np.argmax(activation))
+        #input(np.argmax(activation))
         return np.argmax(activation)
 
 nt = network()

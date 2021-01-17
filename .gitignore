@@ -341,3 +341,5 @@ healthchecksdb
 
 #User
 dataSet.npy
+mnistds.npy
+imageFile.npy

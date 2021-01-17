@@ -67,13 +67,13 @@ class sudokuImage():
             self.doSave('greyscale.jpg')
 
         #Detect edges
-        self.canny()
-        
+        self.canny(self.pixles)
+
         #Isolate sudoku
         corners = self.findCorners()
 
         #Format into 9*9 28 pixle cells
-        #self.savePixles()
+        self.savePixles()
         self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
         self.updatePixles()
         if verbose:
@@ -86,21 +86,26 @@ class sudokuImage():
         for row in range(9):
             for col in range(9):
                 self.doSave('grid/' + str(row) + str(col) + '.jpg', grid[row][col])
-                self.values[row][col] = nt.recognise(grid[row][col])
+                im = 255 - grid[row][col]
+                im = im - np.min(im[im != 0])
+                im[im < 0] = 0
+                im = 255*im/np.max(im)
+                im[im > 255] = 255
+                self.doSave('grid/I' + str(row) + str(col) + '.jpg', im)
+                self.values[row][col] = nt.recognise(im/255)
 
-    def canny(self):
+        print( self.values)
+
+    def canny(self, pixles):
         #Apply gaussian blur
-        self.pixles = self.convolve(self.gaussianKernel)
-
-        self.pixlesHeight -= np.shape(self.gaussianKernel)[0]*2
-        self.pixlesWidth -= np.shape(self.gaussianKernel)[1]*2
+        gaussian = self.convolve(self.gaussianKernel, pixles)
 
         if verbose:
             self.doSave('gaussian.jpg')
 
         #Obtain sobel operators
-        Gx = self.convolve(self.xKernel)
-        Gy = self.convolve(self.yKernel)
+        Gx = self.convolve(self.xKernel, gaussian)
+        Gy = self.convolve(self.yKernel, gaussian)
         self.pixles = Gx
 
         gradient = np.hypot(Gx, Gy)
@@ -127,18 +132,20 @@ class sudokuImage():
         if verbose:
             self.doSave('Threshold.jpg')
 
-    def convolve(self, kernel):
+    def convolve(self, kernel, pixles):
         kernel = np.flipud(np.fliplr(kernel))
-        newPixles = np.zeros(self.pixles.shape)
+        newPixles = np.zeros(pixles.shape)
         kernelHeight = kernel.shape[0] // 2
         kernelWidth = kernel.shape[1] // 2
+        pixlesHeight = pixles.shape[0]
+        pixlesWidth = pixles.shape[1]
 
-        for row in range(kernelHeight, self.pixlesHeight-kernelHeight):
-            for col in range(kernelWidth, self.pixlesWidth-kernelWidth):
+        for row in range(kernelHeight, pixlesHeight-kernelHeight):
+            for col in range(kernelWidth, pixlesWidth-kernelWidth):
                 #Map kernel to sub-matrix then sum to give central pixle
                 newPixles[row][col] = (kernel*self.pixles[row-kernelWidth:row+kernelWidth+1, col-kernelHeight:col+kernelHeight+1]).sum()
 
-        return newPixles[kernelHeight:self.pixlesHeight-kernelHeight, kernelWidth:self.pixlesWidth-kernelWidth]
+        return newPixles[kernelHeight:pixlesHeight-kernelHeight, kernelWidth:pixlesWidth-kernelWidth]
 
     def suppress(self, gradient, theta, weight = 0.9):
         self.pixles = np.zeros(self.pixles.shape)
@@ -181,11 +188,12 @@ class sudokuImage():
         possibleSudokus = components[-4:]
         possibleCorners = [[min(sudoku, key = lambda x:x[0]+x[1]), max(sudoku, key = lambda x:x[0]-x[1]), max(sudoku, key = lambda x:x[0]+x[1]), min(sudoku, key = lambda x:x[0]-x[1])] for sudoku in possibleSudokus]#lt lb rb rt
         
+        #Find most Sudoku-like
         biggest = [0]
         for i in range(0, 4):
             size = (possibleCorners[i][2][0] - possibleCorners[i][0][0])**2 + (possibleCorners[i][2][1] - possibleCorners[i][0][1])**2
             if size >= biggest[0]:
-                biggest = [size, possibleCorners[i]]
+                biggest = [size, possibleCorners[i], i]
 
         if verbose:
             for i in range(1, 5):
@@ -195,13 +203,21 @@ class sudokuImage():
         if verbose:
             self.saveArray('corners.jpg', corners)
 
+        self.updatePixles()
+        self.removeComponent(possibleSudokus[biggest[2]])
+
         return corners
 
+    def removeComponent(self, component):
+        for i in component:
+            self.pixles[i[0]][i[1]] = 255
+
     def connectedComponents(self):
+        self.pixlesTemp = np.copy(self.pixles)
         components = []
         for row in range(self.pixlesHeight):
             for col in range(self.pixlesWidth):
-                if self.pixles[row][col] == 255:
+                if self.pixlesTemp[row][col] == 255:
                     component, overflows = self.floodFill(row, col)
 
                     while len(overflows) > 0:
@@ -225,11 +241,11 @@ class sudokuImage():
         return components
 
     def floodFill(self, row, col, size = 0):
-        if self.pixles[row][col] == 255 and row>=0 and row<self.pixlesHeight and col>=0 and col<self.pixlesWidth:
+        if self.pixlesTemp[row][col] == 255 and row>=0 and row<self.pixlesHeight and col>=0 and col<self.pixlesWidth:
             if size > 900:#overflow
                 return [], [[row,col]]
             else:
-                self.pixles[row][col] = 0
+                self.pixlesTemp[row][col] = 0
                 component = [[row,col]] 
                 overflow = []
                 for r in range(-1,2):
@@ -295,10 +311,10 @@ class network:
         return 1/(1+np.exp(-matrix))
 
     def recognise(self, image):
-        activation = nt.run(image.flatten()/255)[-1]
+        activation = nt.run(image.flatten())[-1]
         return np.argmax(activation)
 
-with open('testImage.jpg', 'rb') as f:
+with open('testImage.jpeg', 'rb') as f:
     testData = f.read()
 
 verbose = True

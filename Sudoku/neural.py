@@ -5,8 +5,8 @@ class network:
     def __init__(self, Dimensions, fileName = False):
         self.dimensions = Dimensions
 
-        self.biases = 2*[np.random.rand(y)+1 for y in Dimensions[1:]]
-        self.weights = 2*[np.random.rand(x, y)+1 for x, y in zip(Dimensions[1:], Dimensions[:-1])]
+        self.biases = [2*np.random.rand(y)-1 for y in Dimensions[1:]]
+        self.weights = [2*np.random.rand(x, y)-1 for x, y in zip(Dimensions[1:], Dimensions[:-1])]
         #self.biases  = np.copy(self.biases) * 0
         #self.weights  = np.copy(self.weights) * 0
 
@@ -14,6 +14,7 @@ class network:
         data = np.load(filename, allow_pickle=True)
         self.biases = data['bias']
         self.weights = data['weight']
+        self.dimensions = [784] + [len(i) for i in self.weights]
 
     def saveNet(self, filename = 'network.npz'):
         np.savez(filename, bias = self.biases, weight = self.weights)
@@ -39,14 +40,14 @@ class network:
     def SDG(self, size, td, lr):
         td.shuffleImages()
         netCost = 0
-        batchSize = len(td.images)//size
+        #batchSize = len(td.images)//size
 
-        for i in range(0, len(td.images)-batchSize, batchSize):
+        for i in range(size, len(td.images), size):
             biasesChange = np.copy(self.biases) * 0
             weightsChange = np.copy(self.weights) * 0
 
-            for j in range(batchSize):
-                imageIndex = i + j
+            for j in range(size):
+                imageIndex = i + j - size
                 wanted = np.zeros(10)
                 wanted[td.images[imageIndex][1]] = 1
                 activations = self.run(td.images[imageIndex][0])
@@ -57,8 +58,8 @@ class network:
                 weightsChange, biasesChange = self.backProp(activations, wanted, weightsChange, biasesChange)
             #input(c)
 
-            self.weights -= weightsChange * lr / batchSize
-            self.biases -= biasesChange * lr / batchSize
+            self.weights = self.weights - weightsChange * lr / size
+            self.biases -= self.biases - biasesChange * lr / size
 
         return netCost/len(td.images)
 
@@ -70,7 +71,7 @@ class network:
             weightsChange[-i] += np.outer(dcdz, activations[-i-1])
             biasesChange[-i] += dcdz
             
-            dcda = np.dot(dcdz, self.weights[-i])
+            dcda = np.dot(self.weights[-i].T, dcdz)
 
         return weightsChange, biasesChange
 
@@ -79,13 +80,17 @@ class network:
         correct = 0
         for imageIndex in range(size-1):
             activations = self.run(td.testImages[imageIndex][0])[-1]
-            if np.argmax(activations) == td.testImages[imageIndex][1] and np.max(activations[np.argmax(activations)+1:]) != np.max(activations):
+
+            if np.argmax(activations) == td.testImages[imageIndex][1]:# and np.max(activations[np.argmax(activations)+1:]) != np.max(activations):
                 correct+=1
             #else:
-            #    print(td.testImages[imageIndex][1])
+            #    print(td.testImages[imageIndex][1], imageIndex)
             #    imageFromPixles = Image.fromarray(np.uint8([td.testImages[imageIndex][0][i:i+28]*255 for i in range(0,784,28)]))
+
             #    imageFromPixles.show()
-        return correct
+            #    print()
+
+        return correct*10000//size/100
 
     #Propogation functions
     def sigmoid(self, matrix):
@@ -95,16 +100,16 @@ class network:
         return sx*(1-sx)
 
     def cost(self, activation, wanted):
-        return sum((activation - wanted)**2)/self.dimensions[-1]
+        return sum((activation - wanted)**2)/self.dimensions[-1]/2
 
     def costPrime(self, activation, wanted):
         return (activation - wanted)
 
 class trainingData:
     
-    def __init__(self):
-        data = np.load('ds.npy', allow_pickle=True)[1:]
-        np.random.shuffle(data)
+    def __init__(self, fileName):
+        data = np.load(fileName, allow_pickle=True)[1:]
+        #np.random.shuffle(data)
         self.images = data[:-2000]
         print(len(self.images))
         self.testImages = data[-2000:]
@@ -117,17 +122,23 @@ class trainingData:
         np.random.shuffle(self.testImages)
 
 nt = network([784, 30, 30, 10])
-#nt.loadNet()
-td = trainingData()
+nt.loadNet()
+td = trainingData('ds.npy')
 print('intialised')
 
 #print(nt.run(td.images[0][0]), td.images[0][1])
 
-#for img in range(100):
-#    print(nt.run(td.images[img][0])[-1])
-#    imageFromPixles = Image.fromarray(np.uint8([255*td.images[img][0][i:i+28] for i in range(0,784,28)]))
-#    imageFromPixles.save('trala.jpg')
-#    input(td.images[img][1])
+for img in range(100):
+    im = td.images[img][0]-np.min(td.images[img][0])
+    im = 255*im/np.max(im)
+    print(nt.run(td.images[img][0])[-1])
+    print(nt.run(im)[-1])
+    im[im > 255] = 255
+    imageFromPixles = Image.fromarray(np.uint8([im[i:i+28] for i in range(0,784,28)]))
+    imageFromPixles.show()
+    print(np.max(td.images[img][0]))
+
+    input(td.images[img][1])
 print(nt.test(100, td))
 
 
@@ -136,3 +147,4 @@ nt.train(3, td)
 print(nt.test(1000, td))
 print(nt.test(1000, td))
 nt.saveNet()
+
