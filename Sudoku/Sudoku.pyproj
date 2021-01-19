@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>e18a26bb-7acd-40c0-817e-793e6f049ab1</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>image.py</StartupFile>
+    <StartupFile>Sudoku.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

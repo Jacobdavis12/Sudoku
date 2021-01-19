@@ -2,20 +2,6 @@ import numpy as np
 from PIL import Image
 import io
 
-def generateGaussianKernel(sigma, size):
-    #kernel1D = []
-    #for distance in range(-size,size+1):
-    #    kernel1D.append(1 / ((2 * np.pi)**(1/2) * sigma) * np.exp(-(distance / sigma)**2 / 2))
-    #kernel = np.outer(kernel1D, kernel1D)
-
-    kernel = np.zeros((2*size+1,2*size+1))
-    coefficient = 2*sigma**2
-
-    for i in range(1, 2*size+2):
-        for j in range(1, 2*size+2):
-            kernel[i-1][j-1] = np.exp(-((i-(size+1))**2+(j-(size+1))**2)/2/coefficient)/(coefficient*np.pi)**(1/2)
-    return kernel
-
 class sudokuImage():
     def __init__(self, imageData):
         #Inherit Module by delegated wrapper
@@ -59,52 +45,48 @@ class sudokuImage():
 
         self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
 
+    def savePixles(self):
+        self._img = Image.fromarray(np.uint8(self.pixles))
+
     def recognise(self):
         if verbose:
             self.doSave('greyscale.jpg')
 
         #Detect edges
-        self.canny()
-        
+        #self.pixles = self.canny(self.pixles)
+        self.pixles = self.adaptiveThreshold(self.convolve(self.gaussianKernel, self.pixles))
+        if verbose:
+            self.doSave('Threshold.jpg', self.pixles)
+
         #Isolate sudoku
-        corners = self.findCorners()
+        corners = self.findCorners(self.pixles)
 
         #Format into 9*9 28 pixle cells
+        self.savePixles()
         self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
         self.updatePixles()
         if verbose:
             self.save('warped.jpg')
+        self.save('warped/n' + imageName)
 
         #Seperate
 
-        grid = self.getCells(corners)
-        
-        for row in range(9):
-            for col in range(9):
-                self.doSave('grid/' + str(row) + str(col) + '.jpg', grid[row][col])
-                self.values[row][col] = nt.recognise(grid[row][col])
+        self.grid = self.getCells(corners)
 
-    def canny(self):
+    def canny(self, pixles):
         #Apply gaussian blur
-        self.pixles = self.convolve(self.gaussianKernel)
-
-        self.pixlesHeight -= np.shape(self.gaussianKernel)[0]*2
-        self.pixlesWidth -= np.shape(self.gaussianKernel)[1]*2
+        gaussian = self.convolve(self.gaussianKernel, pixles)
 
         if verbose:
-            self.doSave('gaussian.jpg')
+            self.doSave('gaussian.jpg', gaussian)
 
         #Obtain sobel operators
-        Gx = self.convolve(self.xKernel)
-        Gy = self.convolve(self.yKernel)
-        self.pixles = Gx
+        Gx = self.convolve(self.xKernel, gaussian)
+        Gy = self.convolve(self.yKernel, gaussian)
 
         gradient = np.hypot(Gx, Gy)
         theta = np.arctan2(Gy, Gx)
         theta[theta<0] += np.pi
-
-        self.pixlesHeight -= 2
-        self.pixlesWidth -= 2
 
         if verbose:
             self.doSave('gradient.jpg', gradient)
@@ -114,51 +96,89 @@ class sudokuImage():
             self.sTheta(theta)
 
         #Thin edge
-        self.suppress(gradient, theta)
+        supPix = self.suppress(gradient, theta)
         if verbose:
-            self.doSave('suppress.jpg')
+            self.doSave('suppress.jpg', supPix)
 
-        self.pixles[self.pixles < 15] =0
-        self.pixles[self.pixles >= 15] = 255
+        supPix[supPix < 50] =0
+        supPix[supPix >= 50] = 255
         if verbose:
-            self.doSave('Threshold.jpg')
+            self.doSave('Threshold.jpg', supPix)
 
-    def convolve(self, kernel):
+        return supPix
+
+    def convolve(self, kernel, pixles):
         kernel = np.flipud(np.fliplr(kernel))
-        newPixles = np.zeros(self.pixles.shape)
+        newPixles = np.zeros(pixles.shape)
         kernelHeight = kernel.shape[0] // 2
         kernelWidth = kernel.shape[1] // 2
+        pixlesHeight = pixles.shape[0]
+        pixlesWidth = pixles.shape[1]
 
-        for row in range(kernelHeight, self.pixlesHeight-kernelHeight):
-            for col in range(kernelWidth, self.pixlesWidth-kernelWidth):
+        for row in range(kernelHeight, pixlesHeight-kernelHeight):
+            for col in range(kernelWidth, pixlesWidth-kernelWidth):
                 #Map kernel to sub-matrix then sum to give central pixle
-                newPixles[row][col] = (kernel*self.pixles[row-kernelWidth:row+kernelWidth+1, col-kernelHeight:col+kernelHeight+1]).sum()
+                newPixles[row][col] = (kernel*pixles[row-kernelWidth:row+kernelWidth+1, col-kernelHeight:col+kernelHeight+1]).sum()
 
-        return newPixles[kernelHeight:self.pixlesHeight-kernelHeight, kernelWidth:self.pixlesWidth-kernelWidth]
+        return newPixles[kernelHeight:pixlesHeight-kernelHeight, kernelWidth:pixlesWidth-kernelWidth]
 
-    def suppress(self, gradient, theta, weight = 0.9):
-        self.pixles = np.zeros(self.pixles.shape)
-        for row in range(1, self.pixlesHeight-1):
-            for col in range(1, self.pixlesWidth-1):
+    def suppress(self, gradient, theta, weight = 1):
+        supressedPixles = np.zeros(gradient.shape)
+        for row in range(1, theta.shape[0]-1):
+            for col in range(1, theta.shape[1]-1):
                 if theta[row][col] < np.pi/8 or theta[row][col] >= 7*np.pi/8:#|
                     if gradient[row][col] >= weight*max(gradient[row][col+1], gradient[row][col-1]):
-                        self.pixles[row][col] = gradient[row][col]
+                        supressedPixles[row][col] = gradient[row][col]
                 elif theta[row][col] < 3*np.pi/8:#/
                     if gradient[row][col] >= weight*max(gradient[row-1][col-1], gradient[row+1][col+1]):
-                        self.pixles[row][col] = gradient[row][col]
+                        supressedPixles[row][col] = gradient[row][col]
                 elif theta[row][col] < 5*np.pi/8:#-
                     if gradient[row][col] >= weight*max(gradient[row+1][col], gradient[row-1][col]):
-                        self.pixles[row][col] = gradient[row][col]
+                        supressedPixles[row][col] = gradient[row][col]
                 elif theta[row][col] < 7*np.pi/8:#\
                     if gradient[row][col] >= weight*max(gradient[row-1][col+1], gradient[row+1][col-1]):
-                        self.pixles[row][col] = gradient[row][col]
+                        supressedPixles[row][col] = gradient[row][col]
                 else:
                     print(theta[row][col])
+
+        return supressedPixles
+
+    def adaptiveThreshold(self, pixles, size=5):
+        thresholdPixles = np.zeros(pixles.shape)
+        d = 2*size+1
+        for row in range(pixles.shape[0]):
+            rowLow = row-size
+            rowUp = row+size+1
+            if rowLow < 0:
+                di = (2*size+1+rowLow)
+                rowLow = 0
+            elif rowUp >= pixles.shape[0]:
+                di = (2*size+1+pixles.shape[0]-rowUp+1)
+                rowLow = pixles.shape[0]-1
+            else:
+                di = d
+
+            for col in range(pixles.shape[1]):
+                colLow = col-size
+                colUp = col+size+1
+                if colLow < 0:
+                    div = di * (2*size+1+colLow)
+                    colLow = 0
+                elif colUp >= pixles.shape[1]:
+                    div = di * (2*size+1+pixles.shape[1]-colUp+1)
+                    colLow = pixles.shape[1]-1
+                else:
+                    div = di * d
+
+                if pixles[row][col] <= (pixles[rowLow:rowUp, colLow:colUp]).sum()/div-0.9:
+                    thresholdPixles[row][col] = 255
+
+        return thresholdPixles
                         
     def sTheta(self, theta):
-        thetaPixles = np.empty(self.pixles.shape)
-        for row in range(1, self.pixlesHeight-1):
-            for col in range(1, self.pixlesWidth-1):
+        thetaPixles = np.empty(theta.shape)
+        for row in range(1, theta.shape[0]-1):
+            for col in range(1, theta.shape[1]-1):
                 if theta[row][col] < np.pi/8 or theta[row][col] >= 7*np.pi/8:#|
                     thetaPixles[row][col] = 0
                 elif theta[row][col] < 3*np.pi/8:#/
@@ -171,33 +191,51 @@ class sudokuImage():
                     print(theta[row][col])
         self.doSave('sTheta.jpg', thetaPixles)
         
-    def findCorners(self):
-        components = self.connectedComponents()
+    def findCorners(self, pixles):
+        components = self.connectedComponents(pixles)
         components = sorted(components, key = len)
         possibleSudokus = components[-4:]
         possibleCorners = [[min(sudoku, key = lambda x:x[0]+x[1]), max(sudoku, key = lambda x:x[0]-x[1]), max(sudoku, key = lambda x:x[0]+x[1]), min(sudoku, key = lambda x:x[0]-x[1])] for sudoku in possibleSudokus]#lt lb rb rt
         
+        #Find most Sudoku-like
         biggest = [0]
         for i in range(0, 4):
-            size = (possibleCorners[i][2][0] - possibleCorners[i][0][0])**2 + (possibleCorners[i][2][1] - possibleCorners[i][0][1])**2
+            size = ((i+1)/4)*((possibleCorners[i][2][0] - possibleCorners[i][0][0])**2 + (possibleCorners[i][2][1] - possibleCorners[i][0][1])**2 + (possibleCorners[i][1][0] - possibleCorners[i][3][0])**2 + (possibleCorners[i][1][1] - possibleCorners[i][3][1])**2)#rb-lt,lb-rt
+            
             if size >= biggest[0]:
-                biggest = [size, possibleCorners[i]]
+                biggest = [size, i]
 
         if verbose:
             for i in range(1, 5):
                 self.saveArray('component' + str(i) + '.jpg', components[-i])
         
-        corners = biggest[1]
+        corners = possibleCorners[biggest[1]]
         if verbose:
             self.saveArray('corners.jpg', corners)
 
+        #self.updatePixles()
+
+        self.removeComponent(possibleSudokus[biggest[1]])
+        
+        while len(components[0]) < 150:
+            self.removeComponent(components[0])
+            del components[0]
+
+        if verbose:
+            self.doSave('pix.jpg')
+
         return corners
 
-    def connectedComponents(self):
+    def removeComponent(self, component):
+        for i in component:
+            self.pixles[i[0]][i[1]] = 0
+
+    def connectedComponents(self, pixles):
+        self.pixlesTemp = np.copy(pixles)
         components = []
-        for row in range(self.pixlesHeight):
-            for col in range(self.pixlesWidth):
-                if self.pixles[row][col] == 255:
+        for row in range(pixles.shape[0]):
+            for col in range(pixles.shape[1]):
+                if self.pixlesTemp[row][col] == 255:
                     component, overflows = self.floodFill(row, col)
 
                     while len(overflows) > 0:
@@ -206,7 +244,7 @@ class sudokuImage():
                         for row, col in overflows:
                             for r in range(-1,2):
                                 for c in range(-1,2):
-                                    if r != 0 or c != 0:
+                                    if r != 0 or c != 0 :
                                         componentIn, overflowIn = self.floodFill(row+r, col+c)
                                         component += componentIn
                                         moreOverflows += overflowIn
@@ -221,11 +259,11 @@ class sudokuImage():
         return components
 
     def floodFill(self, row, col, size = 0):
-        if self.pixles[row][col] == 255 and row>=0 and row<self.pixlesHeight and col>=0 and col<self.pixlesWidth:
+        if row >= 0 and row < self.pixlesTemp.shape[0] and col >= 0 and col < self.pixlesTemp.shape[1] and self.pixlesTemp[row][col] == 255:
             if size > 900:#overflow
                 return [], [[row,col]]
             else:
-                self.pixles[row][col] = 0
+                self.pixlesTemp[row][col] = 0
                 component = [[row,col]] 
                 overflow = []
                 for r in range(-1,2):
@@ -270,38 +308,59 @@ class sudokuImage():
 
         self.doSave(fileName, validPixles)
 
-class network:
-    def __init__(self, fileName = False):
-        self.loadNet()
-        self.dimensions = [784] + [len(i) for i in self.weights]
+verbose = False
+dataSetName = 'dataset/normal/'
 
-    def loadNet(self, filename = 'network.npz'):
-        data = np.load(filename, allow_pickle=True)
-        self.weights = data['weight']
-        self.biases = data['bias']
+try:
+    with open('genLog.txt', 'r') as f:
+        fileStart = int(f.read())
+except Exception as e:
+    print(e)
+    fileStart = 1
 
-    def run(self, activation):
-        activations = [activation]
-        for weight, bias in zip(self.weights, self.biases):
-            activation = self.sigmoid(np.dot(weight, activation)+bias)
-            activations.append(activation)
-        return activations
+try:
+    sudokuSets = np.load('dataSet.npy', allow_pickle=True)
+except Exception as e:
+    print(e)
+    sudokuSets = np.array([[1,2]])
+    
+fileNo = fileStart
 
-    def sigmoid(self, matrix):
-        return 1/(1+np.exp(-matrix))
+#try:
+for fileNo in range(fileStart, 1088):
+    sudokuSet = []
+    imageName = 'image' + str(fileNo) + '.jpg'
+    try:
+        with open(dataSetName + imageName, 'rb') as f:
+            imageData = f.read()
+        print('opened', imageName)
+    except Exception as e:
+        print(e)
+        continue
 
-    def recognise(self, image):
-        activation = nt.run(image.flatten()/255)[-1]
-        return np.argmax(activation)
+    datName = 'image' + str(fileNo) + '.dat'
+    try:
+        with open(dataSetName + datName, 'r') as f:
+            datData = f.read()
+        print('opened', datName)
+    except Exception as e:
+        print(e)
+        continue
 
-with open('testImage.jpg', 'rb') as f:
-    testData = f.read()
+    sudokuValues = [i.split(' ') for i in datData.split('\n')[2:11]]
+    sudoku = sudokuImage(imageData)
+    sudoku.recognise()
+    for row in range(9):
+        for col in range(9):
+            sudokuSet.append([sudoku.grid[row][col].flatten()/255, int(sudokuValues[row][col])])
 
-verbose = True
-nt = network()
+    sudokuSets = np.append(sudokuSets, sudokuSet, axis = 0)
+    np.save('dataSet.npy', sudokuSets)
 
+#except Exception as e:
+#    print(e)
+#    with open('genLog.txt', 'w') as f:
+#        f.write(str(fileNo))
 
-sudoku = sudokuImage(testData)
-sudoku.recognise()
-
-breakpoint
+#with open('genLog.txt', 'w') as f:
+#        f.write(str(fileNo+1))
