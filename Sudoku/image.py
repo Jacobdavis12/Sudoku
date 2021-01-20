@@ -27,6 +27,7 @@ class sudokuImage():
 
         self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
         self.values = np.empty((9,9))
+        self.confidence = np.empty((9,9))
 
         #Initialise kernels
         self.gaussianKernel = np.array([[2,4,5,4,2],[4,9,12,9,4],[5,12,15,12,5],[2,4,5,4,2],[4,9,12,9,4]])/159#generateGaussianKernel(1,2)#

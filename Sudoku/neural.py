@@ -128,21 +128,18 @@ print('intialised')
 
 #print(nt.run(td.images[0][0]), td.images[0][1])
 
-#for img in range(100):
-#    im = td.images[img][0]-np.min(td.images[img][0])
-#    im = 255*im/np.max(im)
-#    print(nt.run(td.images[img][0])[-1])
-#    print(nt.run(im)[-1])
-#    im[im > 255] = 255
-#    imageFromPixles = Image.fromarray(np.uint8([im[i:i+28] for i in range(0,784,28)]))
-#    imageFromPixles.show()
-#    print(np.max(td.images[img][0]))
+#for img in range(-1, -10000, -1):
+#    if np.argmax(nt.run(td.images[img][0])[-1]) != td.images[img][1]:
+#        print(nt.run(td.images[img][0])[-1])
+#        imageFromPixles = Image.fromarray(np.uint8([td.images[img][0][i:i+28]*255 for i in range(0,784,28)]))
+#        imageFromPixles.show()
+#        print(np.argmax(nt.run(td.images[img][0])[-1]))
 
-#    input(td.images[img][1])
+#        input(td.images[img][1])
 print(nt.test(100, td))
 
 
-nt.train(0.1, td)
+nt.train(3, td)
 #print(nt.run(td.images[0][0]), td.images[0][1])
 print(nt.test(1000, td))
 print(nt.test(1000, td))

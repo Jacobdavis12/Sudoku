@@ -5,24 +5,27 @@ from PIL import Image
 import io
 
 class handler(BaseHTTPRequestHandler):
-    header = '<html> <head> <title>Sudoku solver</title> <style>#header { font-size: 10vh; height: 10vh; margin: 0px; } #content { display: flex; flex-wrap: wrap; } #sudoku { height: 80vh; width: 80vh; display: grid; grid-template-columns: 26vh 26vh 26vh; grid-gap: 1vh; background-color: black; border:solid #cccccc 1vh; float:left; } .square { position: relative; height: 100%; width: 100%; display: grid; grid-template-columns: 8vh 8vh 8vh; grid-gap: 1vh; background-color: #c0c0c0; } .cell { font-size: 8vh; height: 8vh; text-align: center; background-color: white; border: 0px; } #image, .type { display: none; } .control { background-color: #004080; border-radius: 5px; border: 1px solid white; color: white; } #controls { flex-grow: 100; display: grid; grid-template-rows: 26vh 26vh 26vh; grid-gap: 1vh; white-space: nowrap; font-size: 6vh; padding: 1vh 0px 0px 1vh; } #controls > .control{ display: flex; height: 26vh; width: 100%; } @media screen and (orientation: portrait) { #header { font-size: 10vw; height: 10vw; } #sudoku { height: 80vw; width: 80vw; grid-template-columns: 26vw 26vw 26vw; grid-gap: 1vw; border-width: 1vw; } .square { grid-template-columns: 8vw 8vw 8vw; grid-gap: 1vw; } .cell { font-size: 8vw; height: 8vw; } #controls { padding-left: 0px; font-size: 6vw; height: 6vw; grid-template-rows: 26vw 26vw 26vw; grid-gap: 1vw; padding: 1vw 0px 0px 1vw; } #controls > .control{ height: 26vw; } } </style> </head> <body> <h1 id="header">Sudoku solver</h1> <div id="content"> <form id="sudoku" method="post"> <input name="type" class="type" value="sudoku"></input>'
+    header = '<html> <head> <title>Sudoku solver</title> <style>#header { font-size: 10vh; height: 10vh; margin: 0px; } #content { display: flex; flex-wrap: wrap; } #sudoku { height: 80vh; width: 80vh; display: grid; grid-template-columns: 26vh 26vh 26vh; grid-gap: 1vh; background-color: black; border:solid #cccccc 1vh; float:left; } .square { position: relative; height: 100%; width: 100%; display: grid; grid-template-columns: 8vh 8vh 8vh; grid-gap: 1vh; background-color: #c0c0c0; } .cell { font-size: 8vh; height: 8vh; text-align: center; background-color: white; border: 0px; } #image, .type { display: none; } .control { background-color: #004080; border-radius: 5px; border: 1px solid white; color: white; } #controls { flex-grow: 100; display: grid; grid-template-rows: 26vh 26vh 26vh; grid-gap: 1vh; white-space: nowrap; font-size: 6vh; padding: 1vh 0px 0px 1vh; } #controls > .control{ display: flex; height: 26vh; width: 100%; } @media screen and (orientation: portrait) { #header { font-size: 10vw; height: 10vw; } #sudoku { height: 80vw; width: 80vw; grid-template-columns: 26vw 26vw 26vw; grid-gap: 1vw; border-width: 1vw; } .square { grid-template-columns: 8vw 8vw 8vw; grid-gap: 1vw; } .cell { font-size: 8vw; height: 8vw; } #controls { padding-left: 0px; font-size: 6vw; height: 6vw; grid-template-rows: 26vw 26vw 26vw; grid-gap: 1vw; padding: 1vw 0px 0px 1vw; } #controls > .control{ height: 26vw; } }</style> </head> <body> <h1 id="header">Sudoku solver</h1> <div id="content"> <form id="sudoku" method="post"> <input name="type" class="type" value="sudoku"></input>'
     footer = '</form> <div id="controls"> <label for="image" class="control"> Upload Sudoku image <form id = "upload" method="post" enctype="multipart/form-data"> <input name="type" class="type" value="image"></input> <input id="image" type="file" name="filename" onchange="form.submit()"> </form> </label> <label class="control" for="photo"> Preferences <form id = "preference" method="post"> <input name="type" class="type" value="preference"></input> </form> </label> <label class="control" onclick="sudoku.submit()"> Solve Sudoku </label> </div> </div> </body> </html>'
-    
+
     def sendHtml(self, data):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         self.wfile.write(data.encode('utf8'))
         
-    def do_GET(self, params = {}):
+    def do_GET(self, params = {}, opacity = {}):
         index = self.header
         for h in range(9):
             index += '<div id="s' + str(h) + '" class="square">\n'
             for w in range(9):
                 if str(h) + str(w) in params:
-                    index += '<input type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="' + str(params[str(h) + str(w)]) + '" class="cell">\n'
+                    if str(h) + str(w) in opacity:
+                        index += '<input class="cell" type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="' + str(params[str(h) + str(w)]) + '" style="color: rgba(0, 0, 0, ' + str(opacity[str(h) + str(w)]) + ');">\n'
+                    else:
+                        index += '<input class="cell" type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="' + str(params[str(h) + str(w)]) + '">\n'
                 else:
-                    index += '<input type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="" class="cell">\n'
+                    index += '<input class="cell" type="text" size="1" maxlength="1" name="' + str(h) + str(w) + '" value="">\n'
             index += '</div>\n'
 
         index += self.footer
@@ -40,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
         elif b'image' in postData:
             imageInput = sudokuImage(self.parseImage(postData))
             imageInput.recognise()
-            self.do_GET(imageInput.getValues())
+            self.do_GET(imageInput.getValues(), imageInput.getConfidences())
         elif b'preference' in postData:
             self.parsePref(postData)
             self.do_GET()
@@ -69,24 +72,89 @@ class handler(BaseHTTPRequestHandler):
 class sudoku():
     def __init__(self, rawData):
         self.rawValues = rawData
-        self.grid = self.rowToSquare([[rawData[str(row)+str(col)] for row in range(9)] for col in range(9)])
+        self.grid = np.asarray(rowToSquare([[rawData[str(col)+str(row)] for row in range(9)] for col in range(9)]))
 
-    def squareToRow(self, grid):
-        return [[grid[row+row2][col+col2] for row2 in range(0,3,1) for col2 in range(0,3,1)] for row in range(0,9,3) for col in range(0,9,3)]
-
-    def rowToSquare(self, grid):
-        return [[grid[row+row2][col+col2] for row2 in range(0,3,1) for col2 in range(0,3,1)] for row in range(0,9,3) for col in range(0,9,3)]
-
-    def solve(self):
-        print('solved')
+        self.possible = '123456789'
+        self.possibilities = np.full(self.grid.shape, '123456789')
+        for row in range(9):
+            for col in range(9):
+                if self.grid[row][col] != '':
+                    self.possibilities[row][col] = str(self.grid[row][col])
 
     def getValues(self):
         values = {}
-        squareGrid = self.squareToRow(self.grid)
+        squareGrid = squareToRow(self.grid)
         for square in range(9):
             for cell in range(9):
-                values[str(cell)+str(square)] = squareGrid[square][cell]
+                values[str(square)+str(cell)] = squareGrid[square][cell]
         return values
+
+    def solve(self):
+        print('solving')
+
+        previousPossibilities = []
+        while previousPossibilities != str(self.possibilities):
+            self.display()
+            previousPossibilities = str(self.possibilities)
+            self.applyRestrictions()
+            
+        if len(previousPossibilities) == 351:
+            print('solved')
+        else:
+            print('cannot solve')
+            
+        self.grid = self.possibilities
+
+    def applyRestrictions(self):
+        self.removeRow()
+        self.removeCol()
+        self.removeSqu()
+
+    def remove(self, pointers):
+        for pointer in pointers:
+            if len(self.possibilities[pointer[0]][pointer[1]]) == 1:
+                for pointerRemove in pointers:
+                    if pointerRemove != pointer:
+                        self.possibilities[pointerRemove[0]][pointerRemove[1]] = self.possibilities[pointerRemove[0]][pointerRemove[1]].replace(self.possibilities[pointer[0]][pointer[1]], '')
+
+    def insert(self, pointers):
+        for number in range(9):
+            sole = False
+            for pointer in pointers:
+                if str(number) in self.possibilities[pointer[0]][pointer[1]]:
+                    if sole == False:
+                        sole = pointer
+                    else:
+                        sole = False
+                        break
+
+            if sole != False:
+                self.possibilities[sole[0]][sole[1]] = number
+
+    def removeRow(self):
+        for row in range(9):
+            pointers = [[row, col] for col in range(9)]
+            self.remove(pointers)
+            self.insert(pointers)
+
+    def removeCol(self):
+        for col in range(9):
+            pointers = [[row, col] for row in range(9)]
+            self.remove(pointers)
+            self.insert(pointers)
+
+    def removeSqu(self):
+        for row in range(0,9,3):
+            for col in range(0,9,3):
+                pointers = [[row+row2, col+col2] for col2 in range(0,3,1) for row2 in range(0,3,1)]
+                self.remove(pointers)
+                self.insert(pointers)
+
+    def display(self):
+        for row in self.possibilities:
+            print([[row[col], row[col+1], row[col+2]] for col in range(0,9,3)])
+        print()
+
 
 class sudokuImage():
     def __init__(self, imageData):
@@ -99,6 +167,7 @@ class sudokuImage():
 
         self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
         self.values = np.empty((9,9))
+        self.confidences = np.empty((9,9))
 
         #Initialise kernels
         self.gaussianKernel = np.array([[2,4,5,4,2],[4,9,12,9,4],[5,12,15,12,5],[2,4,5,4,2],[4,9,12,9,4]])/159#generateGaussianKernel(1,2)#
@@ -118,13 +187,22 @@ class sudokuImage():
 
     def getValues(self):
         outputValues = {}
+        squareValues = squareToRow(self.values)
 
-        for row in range(9):
-            for col in range(9):
-                if self.values[row][col] != 0:
-                    outputValues[str(row)+str(col)] = str(self.values[row][col])[0]
-                else:
-                    outputValues[str(row)+str(col)] = ''
+        for square in range(9):
+            for cell in range(9):
+                if squareValues[square][cell] != 0:
+                    outputValues[str(square)+str(cell)] = str(squareValues[square][cell])[0]
+
+        return outputValues
+
+    def getConfidences(self):
+        outputValues = {}
+        squareValues = squareToRow(self.values)
+
+        for square in range(9):
+            for cell in range(9):
+                outputValues[str(square)+str(cell)] = self.confidences[square][cell]
 
         return outputValues
 
@@ -139,8 +217,7 @@ class sudokuImage():
 
     def recognise(self):
 
-        #Detect edges
-        #self.pixles = self.canny(self.pixles)
+        #Detect lines
         self.pixles = self.adaptiveThreshold(self.convolve(self.gaussianKernel, self.pixles))
 
         #Isolate sudoku
@@ -157,27 +234,7 @@ class sudokuImage():
         
         for row in range(9):
             for col in range(9):
-                self.values[row][col] = nt.recognise(grid[row][col]/255)
-
-    def canny(self, pixles):
-        #Apply gaussian blur
-        gaussian = self.convolve(self.gaussianKernel, pixles)
-
-        #Obtain sobel operators
-        Gx = self.convolve(self.xKernel, gaussian)
-        Gy = self.convolve(self.yKernel, gaussian)
-
-        gradient = np.hypot(Gx, Gy)
-        theta = np.arctan2(Gy, Gx)
-        theta[theta<0] += np.pi
-
-        #Thin edge
-        supPix = self.suppress(gradient, theta)
-
-        supPix[supPix < 50] =0
-        supPix[supPix >= 50] = 255
-
-        return supPix
+                self.values[row][col], self.confidences[row][col] = nt.recognise(grid[row][col]/255)
 
     def convolve(self, kernel, pixles):
         kernel = np.flipud(np.fliplr(kernel))
@@ -193,27 +250,6 @@ class sudokuImage():
                 newPixles[row][col] = (kernel*pixles[row-kernelWidth:row+kernelWidth+1, col-kernelHeight:col+kernelHeight+1]).sum()
 
         return newPixles[kernelHeight:pixlesHeight-kernelHeight, kernelWidth:pixlesWidth-kernelWidth]
-
-    def suppress(self, gradient, theta, weight = 1):
-        supressedPixles = np.zeros(gradient.shape)
-        for row in range(1, theta.shape[0]-1):
-            for col in range(1, theta.shape[1]-1):
-                if theta[row][col] < np.pi/8 or theta[row][col] >= 7*np.pi/8:#|
-                    if gradient[row][col] >= weight*max(gradient[row][col+1], gradient[row][col-1]):
-                        supressedPixles[row][col] = gradient[row][col]
-                elif theta[row][col] < 3*np.pi/8:#/
-                    if gradient[row][col] >= weight*max(gradient[row-1][col-1], gradient[row+1][col+1]):
-                        supressedPixles[row][col] = gradient[row][col]
-                elif theta[row][col] < 5*np.pi/8:#-
-                    if gradient[row][col] >= weight*max(gradient[row+1][col], gradient[row-1][col]):
-                        supressedPixles[row][col] = gradient[row][col]
-                elif theta[row][col] < 7*np.pi/8:#\
-                    if gradient[row][col] >= weight*max(gradient[row-1][col+1], gradient[row+1][col-1]):
-                        supressedPixles[row][col] = gradient[row][col]
-                else:
-                    print(theta[row][col])
-
-        return supressedPixles
 
     def adaptiveThreshold(self, pixles, size=3):
         thresholdPixles = np.zeros(pixles.shape)
@@ -240,8 +276,6 @@ class sudokuImage():
                 biggest = [size, i]
         
         corners = possibleCorners[biggest[1]]
-
-        #self.updatePixles()
 
         self.removeComponent(possibleSudokus[biggest[1]])
         
@@ -343,7 +377,13 @@ class network:
         #display(image.flatten())
         #print(activation)
         #input(np.argmax(activation))
-        return np.argmax(activation)
+        return np.argmax(activation), np.max(activation)
+
+def squareToRow(grid):
+    return [[grid[row+row2][col+col2] for row2 in range(0,3,1) for col2 in range(0,3,1)] for row in range(0,9,3) for col in range(0,9,3)]
+
+def rowToSquare(grid):
+    return [[grid[row+row2][col+col2] for row2 in range(0,3,1) for col2 in range(0,3,1)] for row in range(0,9,3) for col in range(0,9,3)]
 
 def display(pixles):
     imageFromPixles = Image.fromarray(np.uint8([pixles[i:i+28]*255 for i in range(0,784,28)]))

@@ -3,25 +3,25 @@ class sudoku():
     def __init__(self, rawData):
         #self.rawValues = rawData
         #self.grid = self.rowToSquare([[rawData[str(row)+str(col)] for row in range(9)] for col in range(9)])
-        self.grid = np.asarray([['', '', '3', '', '4', '6', '', '2', '5'],
-                                ['', '8', '4', '1', '2', '', '', '', ''],
-                                ['', '', '', '', '', '8', '', '1', '9'],
-                                ['8', '', '7', '', '', '', '1', '5', ''],
-                                ['', '4', '', '', '', '', '', '9', ''],
-                                ['', '2', '9', '', '', '', '3', '', '7'],
-                                ['7', '9', '', '6', '', '', '', '', ''],
-                                ['', '', '', '', '1', '9', '2', '7', ''],
-                                ['6', '1', '', '2', '3', '', '9', '', '']])
+        #self.grid = np.asarray([['', '', '3', '', '4', '6', '', '2', '5'],
+        #                        ['', '8', '4', '1', '2', '', '', '', ''],
+        #                        ['', '', '', '', '', '8', '', '1', '9'],
+        #                        ['8', '', '7', '', '', '', '1', '5', ''],
+        #                        ['', '4', '', '', '', '', '', '9', ''],
+        #                        ['', '2', '9', '', '', '', '3', '', '7'],
+        #                        ['7', '9', '', '6', '', '', '', '', ''],
+        #                        ['', '', '', '', '1', '9', '2', '7', ''],
+        #                        ['6', '1', '', '2', '3', '', '9', '', '']])
 
-        #self.grid = np.asarray([['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', ''],
-        #                        ['', '', '', '', '', '', '', '', '']])
+        self.grid = np.asarray([['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', ''],
+                                ['', '', '', '', '', '', '', '', '']])
 
         self.possible = '123456789'
         self.possibilities = np.full(self.grid.shape, '123456789')
@@ -46,15 +46,20 @@ class sudoku():
         return values
 
     def solve(self):
-        print('solved')
+        print('solving')
 
         previousPossibilities = []
-        while previousPossibilities != self.possibilities:
-            #previousPossibilities = self.possibilities
+        while previousPossibilities != str(self.possibilities):
+            previousPossibilities = str(self.possibilities)
             self.applyRestrictions()
             self.display()
             
-        print('cannot solve')
+        if len(previousPossibilities) != 351:
+            print('solved')
+        else:
+            print('cannot solve')
+            
+        self.grid = self.possibilities
 
     def applyRestrictions(self):
         self.removeRow()
