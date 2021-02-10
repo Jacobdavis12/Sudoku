@@ -29,6 +29,9 @@ class network:
             except KeyboardInterrupt:
                 if input('continue?: ') == 'n':
                     batch = 0
+                d = self.demo(td)
+                print(d)
+                print([d[i][i]/sum([d[i][j] for j in d[i]]) for i in d])
 
     def run(self, activation):
         activations = [activation]
@@ -92,6 +95,12 @@ class network:
 
         return correct*10000//size/100
 
+    def demo(self, td):
+        results = {0: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 1: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 2: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 3: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 4: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 5: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 6: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 7: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 8: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}, 9: {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0}}
+        for imageI in td.images:
+            results[imageI[1]][np.argmax(self.run(imageI[0])[-1])] +=1
+        return results
+
     #Propogation functions
     def sigmoid(self, matrix):
         return 1/(1+np.exp(-matrix))
@@ -121,21 +130,21 @@ class trainingData:
     def shuffleTestImages(self):
         np.random.shuffle(self.testImages)
 
-nt = network([784, 30, 30, 10])
+nt = network([784, 100, 50, 30, 10])
 nt.loadNet()
 td = trainingData('ds.npy')
 print('intialised')
 
-#print(nt.run(td.images[0][0]), td.images[0][1])
+print(nt.run(td.images[0][0]), td.images[0][1])#np.zeros(td.images[0][0].shape)))#
 
-#for img in range(-1, -10000, -1):
-#    if np.argmax(nt.run(td.images[img][0])[-1]) != td.images[img][1]:
-#        print(nt.run(td.images[img][0])[-1])
-#        imageFromPixles = Image.fromarray(np.uint8([td.images[img][0][i:i+28]*255 for i in range(0,784,28)]))
-#        imageFromPixles.show()
-#        print(np.argmax(nt.run(td.images[img][0])[-1]))
-
-#        input(td.images[img][1])
+##for img in range(0, 1000, 1):
+##    if np.argmax(nt.run(td.images[img][0])[-1]) != td.images[img][1]:
+##        print(nt.run(td.images[img][0])[-1])
+##        imageFromPixles = Image.fromarray(np.uint8([td.images[img][0][i:i+28]*255 for i in range(0,784,28)]))
+##        imageFromPixles.show()
+##        print(np.argmax(nt.run(td.images[img][0])[-1]))
+##
+##        input(td.images[img][1])
 print(nt.test(100, td))
 
 
