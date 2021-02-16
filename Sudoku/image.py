@@ -1,28 +1,7 @@
 import numpy as np
 from PIL import Image
 import io
-
-#def generateGaussianKernel(sigma, size):
-#    #kernel1D = []
-#    #for distance in range(-size,size+1):
-#    #    kernel1D.append(1 / ((2 * np.pi)**(1/2) * sigma) * np.exp(-(distance / sigma)**2 / 2))
-#    #kernel = np.outer(kernel1D, kernel1D)
-
-#    kernel = np.zeros((2*size+1,2*size+1))
-#    coefficient = 2*sigma**2
-
-#    for i in range(1, 2*size+2):
-#        for j in range(1, 2*size+2):
-#            kernel[i-1][j-1] = np.exp(-((i-(size+1))**2+(j-(size+1))**2)/2/coefficient)/(coefficient*np.pi)**(1/2)
-#    return kernel
-
-#def generateGaussianKernel(sigma, size):
-#        ax = np.linspace(-(size - 1) / 2., (size - 1) / 2., size)
-#        xx, yy = np.meshgrid(ax, ax)
-
-#        kernel = np.exp(-0.5 * (np.square(xx) + np.square(yy)) / np.square(sigma))
-
-#        return kernel / np.sum(kernel)
+import random
 
 def generateGaussianKernel(sigma, size):
     xDistance = np.array((2*size+1)*[[i for i in range(-size, size+1)]])
@@ -31,10 +10,10 @@ def generateGaussianKernel(sigma, size):
     return kernel/kernel.sum()
 
 class sudokuImage():
-
-    def __init__(self, imageData):
+    def __init__(self, imageData, Directory = 'images/'):
         #Inherit Module by delegated wrapper
         self._img = Image.open(io.BytesIO(imageData)).convert('L')
+        self.directory = Directory
 
         #Initialise properties
         self.pixlesHeight = self.height
@@ -60,6 +39,9 @@ class sudokuImage():
     def transform(self, size, method, data):
         self._img = self._img.transform(size, method, data)
 
+    def resize(self, dimensions):
+        self._img = self._img.resize(dimensions)
+
     def getValues(self):
         outputValues = {}
 
@@ -82,10 +64,10 @@ class sudokuImage():
         if verbose:
             self.doSave('greyscale.jpg')
 
-        self.pixles = self.convolve(self.gaussianKernel, self.pixles)
+        #self.pixles = self.convolve(self.gaussianKernel, self.pixles)
 
-        if verbose:
-            self.doSave('gaussian.jpg')
+        #if verbose:
+        #    self.doSave('gaussian.jpg')
 
         #Detect edges
         #self.pixles = self.canny(self.pixles)
@@ -101,22 +83,32 @@ class sudokuImage():
         self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
         self.updatePixles()
 
-        #while self.pixles[1][0] == 255 and self.pixles[1][-1] == 255:
-        #    self.pixles = self.pixles[1:-1, :]
-        #while self.pixles[-2][0] == 255 and self.pixles[-2][-1] == 255:
-        #    self.pixles = self.pixles[1:-1, :]
-        #while self.pixles[0][1] == 255 and self.pixles[1][-1] == 255:
-        #    self.pixles = self.pixles[:, 1:-1]
-        #while self.pixles[0][-2] == 255 and self.pixles[-1][-2] == 255:
-        #    self.pixles = self.pixles[:, 1:-1]
+        if verbose:
+            self.doSave('warped.jpg')
+
+        ##Trim edges
+        #i = [0,1,1,2]
+        #while self.pixles[i[0]].mean() >= 128:
+        #    i[0]+=1
+        #while self.pixles[-i[1]].mean() >= 128:
+        #    i[1]+=1
+        #while self.pixles[:, :i[2]].mean() >= 128:
+        #    i[2]+=1
+        #while self.pixles[:, -i[3]:].mean() >= 128:
+        #    i[3]+=1
+
+        #self.pixles = self.pixles[i[0]//2+1:]
+        #self.pixles = self.pixles[:-i[1]//2]
+        #self.pixles = self.pixles[:, i[2]//2:]
+        #self.pixles = self.pixles[:, :-i[3]//2+1]
 
         #self.savePixles()
         #self.resize((252,252))
         #self.updatePixles()
         #self.show()
 
-        if verbose:
-            self.doSave('warped.jpg')
+        #if verbose:
+        #    self.doSave('trim.jpg')
 
         #self.pixles = self.removeNonNumbers(self.pixles)
         #if verbose:
@@ -251,7 +243,34 @@ class sudokuImage():
         localMean[localMean!=0] = 255
 
         return localMean
-        
+
+    def countOnEdge(self, component, corners):
+        complete = np.full(self.pixles.shape, 255)
+        count = 0
+
+        for a, b in [[0,1],[1,2],[2,3],[3,0]]:#left, bottom, right top
+            edgeImage = np.zeros(self.pixles.shape)
+            dx = (corners[b][0] - corners[a][0])
+            dy = (corners[b][1] - corners[a][1])
+            lengthXY = (dx**2+dy**2)**(1/2)
+            if lengthXY == 0:
+                count += 1
+            else:
+                for pixle in component:
+                    if abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY <= 2:#On same line
+                        count+=1
+                        edgeImage[pixle[0]][pixle[1]] = 255
+
+                    if complete[pixle[0]][pixle[1]] > abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY:
+                        complete[pixle[0]][pixle[1]] = abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY
+
+        if verbose:
+            self.doSave('edge' + str(a) + str(b) + '.jpg', edgeImage)
+            self.doSave('complete.jpg', complete)
+
+        return count
+
+
     def findCorners(self, pixles):
         components = self.connectedComponents(pixles)
         components = sorted(components, key = len)
@@ -261,7 +280,8 @@ class sudokuImage():
         #Find most Sudoku-like
         biggest = [0]
         for i in range(0, 4):
-            size = ((i+1)**2/16)*((possibleCorners[i][2][0] - possibleCorners[i][0][0])**2 + (possibleCorners[i][2][1] - possibleCorners[i][0][1])**2 + (possibleCorners[i][1][0] - possibleCorners[i][3][0])**2 + (possibleCorners[i][1][1] - possibleCorners[i][3][1])**2)#rb-lt,lb-rt
+            self.saveArray('currentComponent.jpg', possibleSudokus[i], pixles)
+            size = self.countOnEdge(possibleSudokus[i], possibleCorners[i])
             
             if size >= biggest[0]:
                 biggest = [size, i]
@@ -310,8 +330,7 @@ class sudokuImage():
 
                         overflows = [i for i in moreOverflows]
 
-                        if len(moreOverflows) > 0:
-                            print('uo', len(moreOverflows))
+                        print('uo', len(moreOverflows))
 
                     components.append(component)
 
@@ -354,13 +373,17 @@ class sudokuImage():
 
     #Test Saves
     def doSave(self, fileName, pixles=''):
+        if verbose:
+            print(fileName)
         if pixles == '':
             imageFromPixles = Image.fromarray(np.uint8(self.pixles))
         else:
             imageFromPixles = Image.fromarray(np.uint8(pixles))#.convert('RGB')
-        imageFromPixles.save('images/' + fileName)
+        imageFromPixles.save(self.directory + fileName)
 
     def saveArray(self, fileName, array, pixles):
+        if verbose:
+            print(fileName)
         validPixles = np.empty(pixles.shape)
         for i in array:
             validPixles[i[0]][i[1]] = 255
@@ -466,6 +489,20 @@ class network:
         #display(image.flatten())
         return np.argmax(activation)
 
+    def getCost(self, image, actual):
+        wanted = np.zeros(10)
+        wanted[int(actual)] = 1
+        inputImage = image.flatten()
+        inputImage[np.isnan(image.flatten())] = 0
+        activation = self.run(inputImage)[-1]
+        c = self.cost(activation, wanted)
+        if np.isnan(c):
+            c = 0
+        return c
+
+    def cost(self, activation, wanted):
+        return sum((activation - wanted)**2)/self.dimensions[-1]/2
+
 def display(pixles):
     imageFromPixles = Image.fromarray(np.uint8([pixles[i:i+28]*255 for i in range(0,784,28)]))
     imageFromPixles.show()
@@ -493,32 +530,229 @@ class testImage(sudokuImage):
         localMean = self.convolve(kernel, pixles)
         self.doSave(self.testName + '_' + str(size) + '_' + str(sigma) + '.jpg', 255*(localMean-localMean.min())/(localMean-localMean.min()).max())
 
+class variImage(sudokuImage):
+    def __init__(self, imageData, variables, sudokuValues, Directory = 'images/'):
+        super(variImage, self).__init__(imageData, Directory)
+        self.edgeRemove1=variables[0]
+        self.edgeRemove2=variables[1]
+        self.edgeRemove3=variables[2]
+        self.thresholdValue=variables[3]
+        self.thresholdSize=variables[4]
+        self.thresholdSigma=variables[5]
+
+    def removeAllButlargest(self, pixles):
+        components = self.connectedComponents(pixles)
+
+        #If on edges remove
+        componentI = 0
+        while componentI < len(components):
+            remove = 0
+            for pix in components[componentI]:
+                if pix[0] == 0 or pix[0] == pixles.shape[0]-1 or pix[1] == 0 or pix[1] == pixles.shape[1]-1:
+                    remove = self.edgeRemove1#1
+                    break
+                if pix[0] == 1 or pix[0] == pixles.shape[0]-2 or pix[1] == 1 or pix[1] == pixles.shape[1]-2:
+                    remove+=self.edgeRemove2#0.0625
+
+                if pix[0] == 2 or pix[0] == pixles.shape[0]-3 or pix[1] == 2 or pix[1] == pixles.shape[1]-3:
+                    remove+=self.edgeRemove3#0.03125
+
+                if remove>=1:
+                    break
+
+            if remove>=1:
+                del components[componentI]
+            else:
+                componentI += 1
+
+        components = sorted(components, key = len)
+
+        componentPixles = np.empty(pixles.shape)
+
+        if len(components) != 0:
+            for pix in components[-1]:
+                componentPixles[pix[0]][pix[1]] = 255
+
+        return componentPixles
+
+    def adaptiveThreshold(self, pixles):
+        size = self.thresholdSize#11
+        kernel = -generateGaussianKernel(self.thresholdSigma, size)#4
+        kernel[size][size] = kernel[size][size]+1
+
+        localMean = self.convolve(kernel, pixles)
+        if verbose:
+            self.doSave('lm.jpg', 255*(localMean-localMean.min())/(localMean-localMean.min()).max())
+
+        localMean[localMean>self.thresholdValue] = 0#-1.5
+        localMean[localMean!=0] = 255
+
+        return localMean
+
+    def recognise(self):
+        if verbose:
+            self.doSave('greyscale.jpg')
+
+        self.pixles = self.convolve(self.gaussianKernel, self.pixles)
+
+        if verbose:
+            self.doSave('gaussian.jpg')
+
+        #Detect edges
+        #self.pixles = self.canny(self.pixles)
+        self.pixles = self.adaptiveThreshold(self.pixles)
+        if verbose:
+            self.doSave('Threshold.jpg')
+
+        #Isolate sudoku
+        corners = self.findCorners(self.pixles)
+
+        #Format into 9*9 28 pixle cells
+        self.savePixles()
+        self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
+        self.updatePixles()
+
+        if verbose:
+            self.doSave('warped.jpg')
+
+        #Seperate
+        self.grid = self.getCells(corners)
+
+        self.netCost = 0
+        cleanedRow = []
+        #self.show()
+        for row in range(9):
+            for col in range(9):
+                if verbose:
+                    self.doSave('dirtGrid/' + str(row) + str(col) + '.jpg', self.grid[row][col])
+                self.grid[row][col] = self.removeAllButlargest(self.grid[row][col])
+                if verbose:
+                    self.doSave('grid/' + str(row) + str(col) + '.jpg', self.grid[row][col])
+                self.netCost += nt.getCost(self.grid[row][col]/255, sudokuValues[row][col])
+            cleanedRow.append(np.concatenate(self.grid[row], axis = 1))
+
+        self.pixles = np.concatenate(cleanedRow)
+        if verbose:
+            self.doSave('removed.jpg')
+
+def vary(variance=100):
+    variables = [0,0,0,0,0,0]
+    if random.randint(0, 100)>variance*0.8:
+        variables[0] = edgeRemove1 + random.randrange(-1,1)/5
+    else:
+        variables[0] = edgeRemove1
+    if random.randint(0, 100)>variance*0.8:
+        variables[1] = edgeRemove2 + random.randrange(-1,1)/10
+    else:
+        variables[1] = edgeRemove2
+    if random.randint(0, 100)>variance*0.8:
+        variables[2] = edgeRemove3 + random.randrange(-1,1)/50
+    else:
+        variables[2] = edgeRemove3
+    if random.randint(0, 100)>variance*0.2:
+        variables[3] = thresholdValue + random.randrange(-1,1)/4
+    else:
+        variables[3] = thresholdValue
+    if random.randint(0, 100)>variance*0.3:
+        variables[4] = thresholdSize + random.randint(-1,2)
+    else:
+        variables[4] = thresholdSize
+    if random.randint(0, 100)>variance*0.25:
+        variables[5] = thresholdSigma + random.randint(-2,3)
+    else:
+        variables[5] = thresholdSigma
+
+    return variables
+
 nt = network()
+##variance
+#edgeRemove1=0.8
+#edgeRemove2=-0.1375
+#edgeRemove3=0.01125
+#thresholdValue=-2.25
+#thresholdSize=11
+#thresholdSigma=4
+#nt = network('mnist0s.npz')
+#verbose = False
+#netcosts = {}
 
-verbose = True
-with open('test9.jpg', 'rb') as f:
-    testData = f.read()
+##for name in [0,1,11,5,7,3,14]:
+##        with open('test' + str(name) + '.jpg', 'rb') as f:
+##            testData = f.read()
 
-sudoku = sudokuImage(testData)
-sudoku.recognise()
-sudoku.doSave('fr.jpg')
+##        with open('test' + str(name) + '.dat', 'r') as f:
+##            datData = f.read()
+
+##        sudokuValues = [i.split(' ') for i in datData.split('\n')[2:11]]
+##        sudoku = variImage(testData, [edgeRemove1, edgeRemove2, edgeRemove3, thresholdValue, thresholdSize, thresholdSigma], sudokuValues)
+##        sudoku.recognise()
+##        netcosts[name] = sudoku.netCost
+##        del sudoku
+
+#oldNetCosts = {0: 3.2067628608927055, 1: 3.54680734590637, 3: 3.1840925215609164, 5: 3.8721358455020525, 7: 3.7042401285306643, 11: 3.833493281511013, 14: 4.325441664804166}#netcosts
+
+#while True:
+#    variables = vary()
+#    for name in [0,1,11,5,7,3,14]:
+#        with open('test' + str(name) + '.jpg', 'rb') as f:
+#            testData = f.read()
+
+#        with open('test' + str(name) + '.dat', 'r') as f:
+#            datData = f.read()
+
+#        sudokuValues = [i.split(' ') for i in datData.split('\n')[2:11]]
+#        sudoku = variImage(testData, variables, sudokuValues)
+#        sudoku.recognise()
+#        netcosts[name] = sudoku.netCost
+#        del sudoku
+
+#    totalCost = 0
+#    for i in netcosts:
+#        totalCost += (oldNetCosts[i] - netcosts[i])*abs(oldNetCosts[i] - netcosts[i])
+
+#    if totalCost > 0:
+#        edgeRemove1 = variables[0]
+#        edgeRemove2 = variables[1]
+#        edgeRemove3 = variables[2]
+#        thresholdValue = variables[3]
+#        thresholdSize = variables[4]
+#        thresholdSigma = variables[5]
+#        oldNetCosts = netcosts
+#    print(oldNetCosts)
+#    print(variables)
+
+##singular
+#nt = network()
 
 #verbose = True
-#for i in range(15):
-#     with open('test' + str(i) +'.jpg', 'rb') as f:
-#        testdata = f.read()
-#     sudoku = sudokuImage(testdata)
-#     sudoku.recognise()
-#     sudoku.doSave('resultd' + str(i) +'.jpg')
-#     del sudoku
-#     #sudoku.dosave('median' + str(i) +'.jpg', sudoku.median) = f.read()
+#fileName = 'test13'
+#with open(fileName + '.jpg', 'rb') as f:
+#    testData = f.read()
 
+#print(fileName)
 
+#sudoku = sudokuImage(testData)
+#print(sudoku.pixles.shape)
+#sudoku.recognise()
+#sudoku.doSave('fr.jpg')
+
+#bulk
+verbose = True
+for i in range(15):
+     with open('test' + str(i) +'.jpg', 'rb') as f:
+        testdata = f.read()
+     sudoku = sudokuImage(testdata, 'images/bulk/' + str(i))
+     print('test' + str(i))
+     sudoku.recognise()
+     del sudoku
+
+##test
 #verbose = False
 #for i in range(11):
 #    with open('test' + str(i) +'.jpg', 'rb') as f:
 #        testData = f.read()
-
+#    print('test' + str(i))
+#
 #    sudoku = testImage(testData)
 #    sudoku.recognise('test' + str(i))
 

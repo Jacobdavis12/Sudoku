@@ -131,8 +131,8 @@ class trainingData:
         np.random.shuffle(self.testImages)
 
 nt = network([784, 100, 50, 30, 10])
-nt.loadNet()
-td = trainingData('ds.npy')
+#nt.loadNet()
+td = trainingData('mnist0sds.npy')
 print('intialised')
 
 print(nt.run(td.images[0][0]), td.images[0][1])#np.zeros(td.images[0][0].shape)))#
@@ -152,5 +152,5 @@ nt.train(3, td)
 #print(nt.run(td.images[0][0]), td.images[0][1])
 print(nt.test(1000, td))
 print(nt.test(1000, td))
-nt.saveNet()
+nt.saveNet('mnist0s.npz')
 

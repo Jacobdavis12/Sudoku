@@ -55,8 +55,6 @@ class sudokuImage():
         self._img = Image.fromarray(np.uint8(self.pixles))
 
     def recognise(self):
-        self.pixles = self.convolve(self.gaussianKernel, self.pixles)
-
         #Detect edges
         self.pixles = self.adaptiveThreshold(self.pixles)
 
@@ -151,16 +149,32 @@ class sudokuImage():
         return newPixles
 
     def adaptiveThreshold(self, pixles):
-        size = 10
-        kernel = -generateGaussianKernel(6, size)
+        size = 11
+        kernel = -generateGaussianKernel(5, size)
         kernel[size][size] = kernel[size][size]+1
 
         localMean = self.convolve(kernel, pixles)
 
-        localMean[localMean>-2] = 0
+        localMean[localMean>-1.5] = 0
         localMean[localMean!=0] = 255
 
         return localMean
+    
+    def countOnEdge(self, component, corners):
+        count = 0
+
+        for a, b in [[0,1],[1,2],[2,3],[3,0]]:#left, bottom, right top
+            dx = (corners[b][0] - corners[a][0])
+            dy = (corners[b][1] - corners[a][1])
+            lengthXY = (dx**2+dy**2)**(1/2)
+            if lengthXY == 0:
+                count += 1
+            else:
+                for pixle in component:
+                    if abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY <= 2:#On same line
+                        count+=1
+
+        return count
                         
     def findCorners(self, pixles):
         components = self.connectedComponents(pixles)
@@ -171,7 +185,7 @@ class sudokuImage():
         #Find most Sudoku-like
         biggest = [0]
         for i in range(0, 4):
-            size = ((i+1)**2/16)*((possibleCorners[i][2][0] - possibleCorners[i][0][0])**2 + (possibleCorners[i][2][1] - possibleCorners[i][0][1])**2 + (possibleCorners[i][1][0] - possibleCorners[i][3][0])**2 + (possibleCorners[i][1][1] - possibleCorners[i][3][1])**2)#rb-lt,lb-rt
+            size = self.countOnEdge(possibleSudokus[i], possibleCorners[i])
             
             if size >= biggest[0]:
                 biggest = [size, i]

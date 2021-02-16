@@ -5,21 +5,21 @@ def display(pixles):
     imageFromPixles = Image.fromarray(np.uint8([pixles[i:i+28]*255 for i in range(0,784,28)]))
     imageFromPixles.show()
     
-ds = np.load('working ds.npy', allow_pickle=True)[1:]
+ds = np.load('mnistds.npy', allow_pickle=True)[1:]
 imageFromPixles = Image.fromarray(np.uint8([ds[0][0][i:i+28]*255 for i in range(0,784,28)]))
 imageFromPixles.show()
-for i in range(len(ds)):
-    print(ds[i][1])
-    if ds[i][1] != 0:
-        display(ds[i][0])
-        input()
-
 ##for i in range(len(ds)):
-##    if ds[i][1] == 0:
-##        ds[i][0] = np.zeros(ds[i][0].shape)
-##        
-##    
-##np.save('ds.npy', ds)
+##    print(ds[i][1])
+##    if ds[i][1] != 0:
+##        display(ds[i][0])
+##        input()
+
+for i in range(len(ds)):
+    if ds[i][1] == 0:
+        ds[i][0] = np.zeros(ds[i][0].shape)
+        
+    
+np.save('mnist0sds.npy', ds)
 ##
 ##erroreneus = [162, 164, 170, 171, 172, 177, 180,185, 187, 188,190, 193, 196, 199]
 ##last = 0
