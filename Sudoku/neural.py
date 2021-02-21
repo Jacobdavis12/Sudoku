@@ -29,9 +29,9 @@ class network:
             except KeyboardInterrupt:
                 if input('continue?: ') == 'n':
                     batch = 0
-                d = self.demo(td)
-                print(d)
-                print([d[i][i]/sum([d[i][j] for j in d[i]]) for i in d])
+                    #d = self.demo(td)
+                    #print(d)
+                    #print([d[i][i]/sum([d[i][j] for j in d[i]]) for i in d])
 
     def run(self, activation):
         activations = [activation]
@@ -131,8 +131,8 @@ class trainingData:
         np.random.shuffle(self.testImages)
 
 nt = network([784, 100, 50, 30, 10])
-#nt.loadNet()
-td = trainingData('mnist0sds.npy')
+nt.loadNet('network.npz')
+td = trainingData('ds.npy')
 print('intialised')
 
 print(nt.run(td.images[0][0]), td.images[0][1])#np.zeros(td.images[0][0].shape)))#
@@ -152,5 +152,5 @@ nt.train(3, td)
 #print(nt.run(td.images[0][0]), td.images[0][1])
 print(nt.test(1000, td))
 print(nt.test(1000, td))
-nt.saveNet('mnist0s.npz')
+nt.saveNet('network.npz')
 

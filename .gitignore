@@ -343,3 +343,4 @@ healthchecksdb
 dataSet.npy
 mnistds.npy
 imageFile.npy
+mnist0sds.npy

@@ -9,32 +9,23 @@ def generateGaussianKernel(sigma, size):
     return kernel/kernel.sum()
 
 class sudokuImage():
-    def __init__(self, imageData):
+    def __init__(self, imageData, Directory = 'images/'):
         #Inherit Module by delegated wrapper
         self._img = Image.open(io.BytesIO(imageData)).convert('L')
+        self.directory = Directory
 
         #Initialise properties
-        self.pixlesHeight = self.height
-        self.pixlesWidth = self.width
-
-        self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
+        self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.width)] for h in range(self.height)])
         self.values = np.empty((9,9))
-
-        #Initialise kernels
-        self.gaussianKernel = np.array([[2,4,5,4,2],[4,9,12,9,4],[5,12,15,12,5],[2,4,5,4,2],[4,9,12,9,4]])/159#generateGaussianKernel(1,2)#
-        self.xKernel = np.array([[1, 0, -1],
-                                 [2, 0, -2],
-                                 [1, 0, -1]])
-        self.yKernel = np.array([[1, 2, 1],
-                                 [0, 0, 0],
-                                 [-1, -2, -1]])
+        self.confidences = np.empty((9,9))
 
     #Inherit Module by delegated wrapper
     def __getattr__(self,key):
         return getattr(self._img,key)
 
-    def transform(self, size, method, data):
-        self._img = self._img.transform(size, method, data)
+    def transform(self, size, method, data, pixles):
+        img = Image.fromarray(np.uint8(pixles)).transform(size, method, data)
+        return np.array([[img.getpixel((w, h)) for w in range(img.width)] for h in range(img.height)])
 
     def getValues(self):
         outputValues = {}
@@ -46,38 +37,48 @@ class sudokuImage():
         return outputValues
 
     def updatePixles(self):
-        self.pixlesHeight = self.height
-        self.pixlesWidth = self.width
-
-        self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.pixlesWidth)] for h in range(self.pixlesHeight)])
+        self.pixles = np.array([[self.getpixel((w, h)) for w in range(self.width)] for h in range(self.height)])
 
     def savePixles(self):
         self._img = Image.fromarray(np.uint8(self.pixles))
 
     def recognise(self):
+        if verbose:
+            self.doSave('greyscale.jpg')
+
         #Detect edges
-        self.pixles = self.adaptiveThreshold(self.pixles)
+        threshold = self.adaptiveThreshold(self.pixles)
+        if verbose:
+            self.doSave('Threshold.jpg', threshold)
 
         #Isolate sudoku
-        corners = self.findCorners(self.pixles)
+        corners = self.findCorners(threshold)
 
-        #Format into 9*9 28 pixle cells
-        self.savePixles()
-        self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]])
-        self.updatePixles()
+        #Format into 252x252 square
+        warped = self.transform((252,252), Image.QUAD, [i for j in corners for i in j[::-1]], threshold)
 
-        #Seperate
-        self.grid = self.getCells(corners)
+        if verbose:
+            self.doSave('warped.jpg', warped)
 
+        #separate into grid
+        self.grid = self.getCells(corners, warped)
+
+        #clean grid and recognise
         cleanedRow = []
         for row in range(9):
             for col in range(9):
+                if verbose:
+                    self.doSave('dirtGrid/' + str(row) + str(col) + '.jpg', self.grid[row][col])
                 self.grid[row][col] = self.removeAllButlargest(self.grid[row][col])
+                if verbose:
+                    self.doSave('grid/' + str(row) + str(col) + '.jpg', self.grid[row][col])
             cleanedRow.append(np.concatenate(self.grid[row], axis = 1))
 
-        self.pixles = np.concatenate(cleanedRow)
-        
-        self.doSave('warped/n' + imageName)
+        cleaned = np.concatenate(cleanedRow)
+        if verbose:
+            self.doSave('removed.jpg', cleaned)
+
+        self.doSave('warped/n' + imageName, cleaned)
 
     def removeAllButlargest(self, pixles):
         components = self.connectedComponents(pixles)
@@ -106,13 +107,14 @@ class sudokuImage():
 
         components = sorted(components, key = len)
 
-        componentPixles = np.empty(pixles.shape)
+        componentPixles = np.zeros(pixles.shape)
 
         if len(components) != 0:
             for pix in components[-1]:
                 componentPixles[pix[0]][pix[1]] = 255
 
         return componentPixles
+
 
     def convolve(self, kernel, pixles):
         kernel = np.flipud(np.fliplr(kernel))
@@ -149,21 +151,25 @@ class sudokuImage():
         return newPixles
 
     def adaptiveThreshold(self, pixles):
-        size = 11
+        size = 15
         kernel = -generateGaussianKernel(5, size)
         kernel[size][size] = kernel[size][size]+1
 
         localMean = self.convolve(kernel, pixles)
+        if verbose:
+            self.doSave('lm.jpg', 255*(localMean-localMean.min())/(localMean-localMean.min()).max())
 
-        localMean[localMean>-1.5] = 0
+        localMean[localMean>-3] = 0
         localMean[localMean!=0] = 255
 
         return localMean
-    
+
     def countOnEdge(self, component, corners):
+        complete = np.full(self.pixles.shape, 255)
         count = 0
 
         for a, b in [[0,1],[1,2],[2,3],[3,0]]:#left, bottom, right top
+            edgeImage = np.zeros(self.pixles.shape)
             dx = (corners[b][0] - corners[a][0])
             dy = (corners[b][1] - corners[a][1])
             lengthXY = (dx**2+dy**2)**(1/2)
@@ -171,11 +177,20 @@ class sudokuImage():
                 count += 1
             else:
                 for pixle in component:
-                    if abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY <= 2:#On same line
+                    if abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY <= 3:#On same line
                         count+=1
+                        edgeImage[pixle[0]][pixle[1]] = 255
+
+                    if complete[pixle[0]][pixle[1]] > abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY:
+                        complete[pixle[0]][pixle[1]] = abs((pixle[0] - corners[a][0])*dx - (pixle[1] - corners[a][1])*dy)/lengthXY
+
+        if verbose:
+            self.doSave('edge' + str(a) + str(b) + '.jpg', edgeImage)
+            self.doSave('complete.jpg', complete)
 
         return count
-                        
+
+
     def findCorners(self, pixles):
         components = self.connectedComponents(pixles)
         components = sorted(components, key = len)
@@ -185,12 +200,22 @@ class sudokuImage():
         #Find most Sudoku-like
         biggest = [0]
         for i in range(0, 4):
-            size = self.countOnEdge(possibleSudokus[i], possibleCorners[i])
+            self.saveArray('currentComponent.jpg', possibleSudokus[i], pixles)
+            size = self.countOnEdge(possibleSudokus[i], possibleCorners[i])*(i+2)/5
             
             if size >= biggest[0]:
                 biggest = [size, i]
+
+        if verbose:
+            for i in range(1, 5):
+                self.saveArray('component' + str(i) + '.jpg', components[-i], pixles)
         
         corners = possibleCorners[biggest[1]]
+        if verbose:
+            self.saveArray('corners.jpg', corners, pixles)
+
+        if verbose:
+            self.doSave('pix.jpg')
 
         return corners
 
@@ -221,8 +246,7 @@ class sudokuImage():
 
                         overflows = [i for i in moreOverflows]
 
-                        if len(moreOverflows) > 0:
-                            print('uo', len(moreOverflows))
+                        print('uo', len(moreOverflows))
 
                     components.append(component)
 
@@ -247,7 +271,7 @@ class sudokuImage():
         else:
             return [], []
 
-    def getCells(self, corners):
+    def getCells(self, corners, pixles):
         grid = []
         cellWidth = 28
         cellHeight = 28
@@ -257,7 +281,7 @@ class sudokuImage():
             xPosition = 0
             grid.append([])
             for x in range(9):
-                grid[-1].append(self.pixles[yPosition:yPosition+28, xPosition:xPosition+28])#warning
+                grid[-1].append(pixles[yPosition:yPosition+28, xPosition:xPosition+28])#warning
                 xPosition += 28
             yPosition += 28
 
@@ -265,20 +289,23 @@ class sudokuImage():
 
     #Test Saves
     def doSave(self, fileName, pixles=''):
+        if verbose:
+            print(fileName)
         if pixles == '':
             imageFromPixles = Image.fromarray(np.uint8(self.pixles))
         else:
             imageFromPixles = Image.fromarray(np.uint8(pixles))#.convert('RGB')
-        imageFromPixles.save('images/' + fileName)
+        imageFromPixles.save(self.directory + fileName)
 
     def saveArray(self, fileName, array, pixles):
-        validPixles = np.empty(pixles.shape)
+        if verbose:
+            print(fileName)
+        validPixles = np.zeros(pixles.shape)
         for i in array:
             validPixles[i[0]][i[1]] = 255
 
         self.doSave(fileName, validPixles)
-
-verbose = False
+verbose = True
 dataSetName = 'dataset/normal/'
 
 try:
@@ -297,7 +324,7 @@ except Exception as e:
 fileNo = fileStart
 
 #try:
-for fileNo in range(fileStart, 1088):
+for fileNo in range(1089):#fileStart
     sudokuSet = []
     imageName = 'image' + str(fileNo) + '.jpg'
     try:

@@ -5,7 +5,9 @@ def display(pixles):
     imageFromPixles = Image.fromarray(np.uint8([pixles[i:i+28]*255 for i in range(0,784,28)]))
     imageFromPixles.show()
     
-ds = np.load('mnistds.npy', allow_pickle=True)[1:]
+ds = np.load('dataset.npy', allow_pickle=True)[1:]
+#ds = ds[::-1]
+dsNew = np.array([[1,2]])
 imageFromPixles = Image.fromarray(np.uint8([ds[0][0][i:i+28]*255 for i in range(0,784,28)]))
 imageFromPixles.show()
 ##for i in range(len(ds)):
@@ -14,31 +16,31 @@ imageFromPixles.show()
 ##        display(ds[i][0])
 ##        input()
 
-for i in range(len(ds)):
-    if ds[i][1] == 0:
-        ds[i][0] = np.zeros(ds[i][0].shape)
+#for i in range(len(ds)):
+#    if ds[i][1] == 0:
+#        ds[i][0] = np.zeros(ds[i][0].shape)
         
     
-np.save('mnist0sds.npy', ds)
-##
-##erroreneus = [162, 164, 170, 171, 172, 177, 180,185, 187, 188,190, 193, 196, 199]
-##last = 0
-##
-##for e in erroreneus:
-##    print(e)
-##    #imageFromPixles = Image.fromarray(np.uint8([ds[e*81][0][i:i+28]*255 for i in range(0,784,28)]))
-##    #imageFromPixles.show()
-##    #imageFromPixles = Image.fromarray(np.uint8([ds[last*81][0][i:i+28]*255 for i in range(0,784,28)]))
-##    #imageFromPixles.show()
-##    dsNew = np.append(dsNew, ds[last*81:e*81], axis = 0)
-##    last = int(e+1)
+#np.save('mnist0sds.npy', ds)
+
+erroreneus = [27, 44, 82, 176, 179, 185, 187]
+last = 0
+
+for e in erroreneus:
+    print(e)
+    #imageFromPixles = Image.fromarray(np.uint8([ds[e*81][0][i:i+28]*255 for i in range(0,784,28)]))
+    #imageFromPixles.show()
+    #imageFromPixles = Image.fromarray(np.uint8([ds[last*81][0][i:i+28]*255 for i in range(0,784,28)]))
+    #imageFromPixles.show()
+    dsNew = np.append(dsNew, ds[last*81:(e-1)*81], axis = 0)
+    last = int(e+1)
 
 #dsNew = dsNew[len(dsNew)//2:]
 #for g in range(len(dsNew)):
 #    imageFromPixles = Image.fromarray(np.uint8([dsNew[g][0][i:i+28]*255 for i in range(0,784,28)]))
 #    imageFromPixles.save('testData/' + str(g) + '.jpg')
 
-##np.save('ds.npy', dsNew)
+np.save('ds.npy', dsNew)
 
 ##y = [i[0] for i in ds]
 ##data = np.load('network.npz', allow_pickle=True)
