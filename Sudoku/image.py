@@ -201,6 +201,11 @@ class sudokuImage():
     def findCorners(self, pixles):
         components = self.connectedComponents(pixles)
         components = sorted(components, key = len)
+
+        if verbose:
+            for i in range(len(components)):
+                self.saveArray('components/' + str(i) + '.jpg', components[i], pixles)
+
         possibleSudokus = components[-4:]
         possibleCorners = [[min(sudoku, key = lambda x:x[0]+x[1]), max(sudoku, key = lambda x:x[0]-x[1]), max(sudoku, key = lambda x:x[0]+x[1]), min(sudoku, key = lambda x:x[0]-x[1])] for sudoku in possibleSudokus]#lt lb rb rt
         

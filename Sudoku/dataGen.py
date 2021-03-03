@@ -307,19 +307,8 @@ class sudokuImage():
         self.doSave(fileName, validPixles)
 verbose = True
 dataSetName = 'dataset/normal/'
-
-try:
-    with open('genLog.txt', 'r') as f:
-        fileStart = int(f.read())
-except Exception as e:
-    print(e)
-    fileStart = 1
-
-try:
-    sudokuSets = np.load('dataSet.npy', allow_pickle=True)
-except Exception as e:
-    print(e)
-    sudokuSets = np.array([[1,2]])
+fileStart = 1
+sudokuSets = np.array([[1,2]])
     
 fileNo = fileStart
 
